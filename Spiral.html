@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simplified and Corrected Spiral of Theodorus (n=1000)</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+        }
+        .spiralContainer {
+            width: 1200px;
+            height: 1200px;
+            margin-bottom: 40px;
+            border: 1px solid #ccc;
+        }
+        svg {
+            width: 100%;
+            height: 100%;
+            background-color: #f9f9f9;
+        }
+        table {
+            border-collapse: collapse;
+            font-size: 12px;
+            margin-top: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+            display: block;
+        }
+        th, td {
+            border: 1px solid black;
+            padding: 3px 6px;
+            text-align: right;
+        }
+        th {
+            background-color: #f2f2f2;
+            position: sticky;
+            top: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="spiralContainer">
+        <svg id="spiral2D" viewBox="-600 -600 1200 1200"></svg>
+    </div>
+    <div class="spiralContainer">
+        <svg id="spiral3D" viewBox="-600 -600 1200 1200"></svg>
+    </div>
+    <table id="dataTable"></table>
+
+    <script>
+        const svgNS = "http://www.w3.org/2000/svg";
+        const spiral2D = document.getElementById('spiral2D');
+        const spiral3D = document.getElementById('spiral3D');
+        const dataTable = document.getElementById('dataTable');
+        const scale = 6;
+        const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F', '#FF9FF3', '#54A0FF', '#5CD859', '#FF5252'];
+
+        function createSpiral(maxRoot) {
+            let points2D = [[0, 0]];
+            let points3D = [[0, 0, 0]];
+            let totalAngle = 0;
+            let data = [];
+
+            for (let i = 1; i <= maxRoot; i++) {
+                const hypotenuse = Math.sqrt(i) * scale;
+                const newAngle = Math.atan(1 / Math.sqrt(i));
+                totalAngle += newAngle;
+                const x = Math.cos(totalAngle) * hypotenuse;
+                const y = Math.sin(totalAngle) * hypotenuse;
+                points2D.push([x, y]);
+
+                const z = -totalAngle * scale / 2;
+                points3D.push([x, z, y]);
+
+                if (i > 1) {
+                    const prevX = points2D[i-1][0];
+                    const prevY = points2D[i-1][1];
+                    const prevX3D = points3D[i-1][0];
+                    const prevZ3D = points3D[i-1][1];
+                    const prevY3D = points3D[i-1][2];
+
+                    const loopCount = Math.floor(totalAngle / (2 * Math.PI));
+
+                    const triangle2D = document.createElementNS(svgNS, 'path');
+                    triangle2D.setAttribute('d', `M 0 0 L ${prevX} ${-prevY} L ${x} ${-y} Z`);
+                    triangle2D.setAttribute('fill', 'none');
+                    triangle2D.setAttribute('stroke', colors[loopCount % colors.length]);
+                    triangle2D.setAttribute('stroke-width', '0.5');
+                    spiral2D.appendChild(triangle2D);
+
+                    const triangle3D = document.createElementNS(svgNS, 'path');
+                    triangle3D.setAttribute('d', `M 0 0 L ${prevX3D} ${prevZ3D} L ${x} ${z} Z`);
+                    triangle3D.setAttribute('fill', 'none');
+                    triangle3D.setAttribute('stroke', colors[loopCount % colors.length]);
+                    triangle3D.setAttribute('stroke-width', '0.5');
+                    spiral3D.appendChild(triangle3D);
+
+                    if (i <= 17 || i % 50 === 0) {
+                        const text2D = document.createElementNS(svgNS, 'text');
+                        text2D.setAttribute('x', (x + prevX) / 2);
+                        text2D.setAttribute('y', -(y + prevY) / 2);
+                        text2D.setAttribute('text-anchor', 'middle');
+                        text2D.setAttribute('dominant-baseline', 'middle');
+                        text2D.setAttribute('font-size', '8');
+                        text2D.setAttribute('fill', colors[loopCount % colors.length]);
+                        text2D.textContent = `√${i}`;
+                        spiral2D.appendChild(text2D);
+
+                        const text3D = document.createElementNS(svgNS, 'text');
+                        text3D.setAttribute('x', (x + prevX3D) / 2);
+                        text3D.setAttribute('y', (z + prevZ3D) / 2);
+                        text3D.setAttribute('text-anchor', 'middle');
+                        text3D.setAttribute('dominant-baseline', 'middle');
+                        text3D.setAttribute('font-size', '8');
+                        text3D.setAttribute('fill', colors[loopCount % colors.length]);
+                        text3D.textContent = `√${i}`;
+                        spiral3D.appendChild(text3D);
+                    }
+
+                    const radius = Math.sqrt(x*x + y*y) / scale;
+
+                    data.push({
+                        n: i,
+                        angle: newAngle * 180 / Math.PI,
+                        radius: radius,
+                        loop: loopCount + 1
+                    });
+                }
+            }
+
+            createTable(data);
+        }
+
+        function createTable(data) {
+            const headers = ['n', 'New Angle (°)', 'Radius to √n', 'Loop'];
+            const headerRow = dataTable.insertRow();
+            headers.forEach(header => {
+                const th = document.createElement('th');
+                th.textContent = header;
+                headerRow.appendChild(th);
+            });
+
+            data.forEach(row => {
+                const tr = dataTable.insertRow();
+                Object.values(row).forEach(value => {
+                    const td = tr.insertCell();
+                    td.textContent = typeof value === 'number' ? value.toFixed(4) : value;
+                });
+            });
+        }
+
+        createSpiral(1000);
+    </script>
+</body>
+</html>

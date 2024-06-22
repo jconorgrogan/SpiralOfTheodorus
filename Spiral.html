@@ -3,158 +3,99 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simplified and Corrected Spiral of Theodorus (n=1000)</title>
+    <title>Corrected 3D Spiral of Theodorus</title>
     <style>
-        body {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 20px;
-            font-family: Arial, sans-serif;
-        }
-        .spiralContainer {
-            width: 1200px;
-            height: 1200px;
-            margin-bottom: 40px;
-            border: 1px solid #ccc;
-        }
-        svg {
-            width: 100%;
-            height: 100%;
-            background-color: #f9f9f9;
-        }
-        table {
-            border-collapse: collapse;
-            font-size: 12px;
-            margin-top: 20px;
-            max-height: 400px;
-            overflow-y: auto;
-            display: block;
-        }
-        th, td {
-            border: 1px solid black;
-            padding: 3px 6px;
-            text-align: right;
-        }
-        th {
-            background-color: #f2f2f2;
-            position: sticky;
-            top: 0;
-        }
+        body{display:flex;flex-direction:column;align-items:center;padding:20px;font-family:Arial,sans-serif}
+        .spiralContainer{width:800px;height:800px;margin-bottom:20px;border:1px solid #ccc;position:relative}
+        svg{width:100%;height:100%;background-color:#f9f9f9}
+        table{border-collapse:collapse;font-size:12px;margin-top:20px;max-height:400px;overflow-y:auto;display:block}
+        th,td{border:1px solid black;padding:3px 6px;text-align:right}
+        th{background-color:#f2f2f2;position:sticky;top:0}
+        #inputContainer{margin-bottom:20px}
+        #sliceCount{width:100px;margin-right:10px}
+        #status{margin-top:10px;font-weight:bold}
+        .controls{margin-bottom:10px}
+        .controls button{margin-right:5px}
     </style>
 </head>
 <body>
-    <div class="spiralContainer">
-        <svg id="spiral2D" viewBox="-600 -600 1200 1200"></svg>
+    <div id="inputContainer">
+        <input type="number" id="sliceCount" min="1" value="1000">
+        <button onclick="updateSpiral()">Generate Spiral</button>
+    </div>
+    <div id="status"></div>
+    <div class="controls">
+        <button onclick="zoomIn()">Zoom In</button>
+        <button onclick="zoomOut()">Zoom Out</button>
+        <button onclick="resetView()">Reset View</button>
     </div>
     <div class="spiralContainer">
-        <svg id="spiral3D" viewBox="-600 -600 1200 1200"></svg>
+        <svg id="spiral2D" viewBox="-400 -400 800 800">
+            <g id="zoomContainer"></g>
+        </svg>
+    </div>
+    <div class="spiralContainer">
+        <svg id="spiral3D" viewBox="-400 -400 800 800">
+            <g id="zoomContainer3D"></g>
+        </svg>
     </div>
     <table id="dataTable"></table>
+    <table id="loopDataTable"></table>
 
     <script>
-        const svgNS = "http://www.w3.org/2000/svg";
-        const spiral2D = document.getElementById('spiral2D');
-        const spiral3D = document.getElementById('spiral3D');
-        const dataTable = document.getElementById('dataTable');
-        const scale = 6;
-        const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F', '#FF9FF3', '#54A0FF', '#5CD859', '#FF5252'];
+        const svgNS="http://www.w3.org/2000/svg",spiral2D=document.getElementById('spiral2D'),spiral3D=document.getElementById('spiral3D'),zoomContainer=document.getElementById('zoomContainer'),zoomContainer3D=document.getElementById('zoomContainer3D'),dataTable=document.getElementById('dataTable'),loopDataTable=document.getElementById('loopDataTable'),statusElement=document.getElementById('status'),colors=['#FF6B6B','#4ECDC4','#45B7D1','#FFA07A','#98D8C8','#F7DC6F','#FF9FF3','#54A0FF','#5CD859','#FF5252'];
+        let currentZoom=1,maxRadius=0,translateX=0,translateY=0;
 
-        function createSpiral(maxRoot) {
-            let points2D = [[0, 0]];
-            let points3D = [[0, 0, 0]];
-            let totalAngle = 0;
-            let data = [];
+        function updateSpiral(){const e=parseInt(document.getElementById('sliceCount').value);isNaN(e)||e<1?alert("Please enter a valid number greater than 0."):(statusElement.textContent="Generating spiral...",setTimeout(()=>createSpiral(e),0))}
 
-            for (let i = 1; i <= maxRoot; i++) {
-                const hypotenuse = Math.sqrt(i) * scale;
-                const newAngle = Math.atan(1 / Math.sqrt(i));
-                totalAngle += newAngle;
-                const x = Math.cos(totalAngle) * hypotenuse;
-                const y = Math.sin(totalAngle) * hypotenuse;
-                points2D.push([x, y]);
-
-                const z = -totalAngle * scale / 2;
-                points3D.push([x, z, y]);
-
-                if (i > 1) {
-                    const prevX = points2D[i-1][0];
-                    const prevY = points2D[i-1][1];
-                    const prevX3D = points3D[i-1][0];
-                    const prevZ3D = points3D[i-1][1];
-                    const prevY3D = points3D[i-1][2];
-
-                    const loopCount = Math.floor(totalAngle / (2 * Math.PI));
-
-                    const triangle2D = document.createElementNS(svgNS, 'path');
-                    triangle2D.setAttribute('d', `M 0 0 L ${prevX} ${-prevY} L ${x} ${-y} Z`);
-                    triangle2D.setAttribute('fill', 'none');
-                    triangle2D.setAttribute('stroke', colors[loopCount % colors.length]);
-                    triangle2D.setAttribute('stroke-width', '0.5');
-                    spiral2D.appendChild(triangle2D);
-
-                    const triangle3D = document.createElementNS(svgNS, 'path');
-                    triangle3D.setAttribute('d', `M 0 0 L ${prevX3D} ${prevZ3D} L ${x} ${z} Z`);
-                    triangle3D.setAttribute('fill', 'none');
-                    triangle3D.setAttribute('stroke', colors[loopCount % colors.length]);
-                    triangle3D.setAttribute('stroke-width', '0.5');
-                    spiral3D.appendChild(triangle3D);
-
-                    if (i <= 17 || i % 50 === 0) {
-                        const text2D = document.createElementNS(svgNS, 'text');
-                        text2D.setAttribute('x', (x + prevX) / 2);
-                        text2D.setAttribute('y', -(y + prevY) / 2);
-                        text2D.setAttribute('text-anchor', 'middle');
-                        text2D.setAttribute('dominant-baseline', 'middle');
-                        text2D.setAttribute('font-size', '8');
-                        text2D.setAttribute('fill', colors[loopCount % colors.length]);
-                        text2D.textContent = `√${i}`;
-                        spiral2D.appendChild(text2D);
-
-                        const text3D = document.createElementNS(svgNS, 'text');
-                        text3D.setAttribute('x', (x + prevX3D) / 2);
-                        text3D.setAttribute('y', (z + prevZ3D) / 2);
-                        text3D.setAttribute('text-anchor', 'middle');
-                        text3D.setAttribute('dominant-baseline', 'middle');
-                        text3D.setAttribute('font-size', '8');
-                        text3D.setAttribute('fill', colors[loopCount % colors.length]);
-                        text3D.textContent = `√${i}`;
-                        spiral3D.appendChild(text3D);
+        function createSpiral(e){
+            zoomContainer.innerHTML='',zoomContainer3D.innerHTML='',dataTable.innerHTML='',loopDataTable.innerHTML='',maxRadius=0;
+            const t=10;
+            let n=[[0,0]],a=[[0,0,0]],o=0,l=[],r=[],i=0,s=0,c=0,d=Math.min(.1,Math.max(.01,1/Math.pow(e,.3))),u=Math.min(4,Math.max(.5,20/Math.pow(e,.4))),m=document.createDocumentFragment(),p=document.createDocumentFragment();
+            for(let h=1;h<=e;h++){
+                const f=Math.sqrt(h)*t,g=Math.atan(1/Math.sqrt(h));
+                o+=g;
+                const v=Math.cos(o)*f,x=Math.sin(o)*f;
+                n.push([v,x]);
+                const z=o*t/2; // Changed to positive value
+                a.push([v,z,x]); // Swapped y and z for upward growth
+                maxRadius=Math.max(maxRadius,Math.sqrt(v*v+x*x));
+                if(h>1){
+                    const e=n[h-1][0],t=n[h-1][1],f=a[h-1][0],y=a[h-1][1],M=Math.floor(o/(2*Math.PI)),b=document.createElementNS(svgNS,"path");
+                    b.setAttribute("d",`M 0 0 L ${e} ${-t} L ${v} ${-x} Z`),b.setAttribute("fill","none"),b.setAttribute("stroke",colors[M%colors.length]),b.setAttribute("stroke-width",d),m.appendChild(b);
+                    const E=document.createElementNS(svgNS,"path");
+                    E.setAttribute("d",`M 0 0 L ${f} ${y} L ${v} ${z} Z`),E.setAttribute("fill","none"),E.setAttribute("stroke",colors[M%colors.length]),E.setAttribute("stroke-width",d),p.appendChild(E);
+                    if(h<=17||h%Math.max(1,Math.floor(e/20))==0){
+                        const e=document.createElementNS(svgNS,"text");
+                        e.setAttribute("x",(v+n[h-1][0])/2),e.setAttribute("y",-(x+n[h-1][1])/2),e.setAttribute("text-anchor","middle"),e.setAttribute("dominant-baseline","middle"),e.setAttribute("font-size",u),e.setAttribute("fill",colors[M%colors.length]),e.textContent=`√${h}`,m.appendChild(e);
+                        const t=document.createElementNS(svgNS,"text");
+                        t.setAttribute("x",(v+f)/2),t.setAttribute("y",(z+y)/2),t.setAttribute("text-anchor","middle"),t.setAttribute("dominant-baseline","middle"),t.setAttribute("font-size",u),t.setAttribute("fill",colors[M%colors.length]),t.textContent=`√${h}`,p.appendChild(t)
                     }
-
-                    const radius = Math.sqrt(x*x + y*y) / scale;
-
-                    data.push({
-                        n: i,
-                        angle: newAngle * 180 / Math.PI,
-                        radius: radius,
-                        loop: loopCount + 1
-                    });
+                    const w=Math.sqrt(v*v+x*x);
+                    if(l.push({n:h,angle:g*180/Math.PI,radius:w,loop:M+1}),o>=2*Math.PI*(i+1)){
+                        const e=h-s,t=1/3*Math.PI*w*w*(o-c);
+                        r.push({loop:i+1,startN:s+1,endN:h,slices:e,circumference:w,volume:t}),i++,s=h,c=o
+                    }
                 }
             }
-
-            createTable(data);
+            zoomContainer.appendChild(m),zoomContainer3D.appendChild(p),createTable(l),createLoopDataTable(r),statusElement.textContent=`Spiral with ${e} slices generated successfully.`,resetView()
         }
 
-        function createTable(data) {
-            const headers = ['n', 'New Angle (°)', 'Radius to √n', 'Loop'];
-            const headerRow = dataTable.insertRow();
-            headers.forEach(header => {
-                const th = document.createElement('th');
-                th.textContent = header;
-                headerRow.appendChild(th);
-            });
+        function createTable(e){const t=["n","New Angle (°)","Radius to √n","Loop"],n=dataTable.insertRow();t.forEach(e=>{const t=document.createElement("th");t.textContent=e,n.appendChild(t)});const a=document.createDocumentFragment();e.forEach(e=>{const t=document.createElement("tr");Object.values(e).forEach(e=>{const n=document.createElement("td");n.textContent="number"==typeof e?e.toFixed(4):e,t.appendChild(n)}),a.appendChild(t)}),dataTable.appendChild(a)}
 
-            data.forEach(row => {
-                const tr = dataTable.insertRow();
-                Object.values(row).forEach(value => {
-                    const td = tr.insertCell();
-                    td.textContent = typeof value === 'number' ? value.toFixed(4) : value;
-                });
-            });
-        }
+        function createLoopDataTable(e){const t=["Loop","Start N","End N","Slices","Circumference","Volume"],n=loopDataTable.insertRow();t.forEach(e=>{const t=document.createElement("th");t.textContent=e,n.appendChild(t)});const a=document.createDocumentFragment();e.forEach(e=>{const t=document.createElement("tr");Object.values(e).forEach(e=>{const n=document.createElement("td");n.textContent="number"==typeof e?e.toFixed(4):e,t.appendChild(n)}),a.appendChild(t)}),loopDataTable.appendChild(a)}
 
-        createSpiral(1000);
+        function zoomIn(){currentZoom*=1.2,updateZoom()}
+        function zoomOut(){currentZoom/=1.2,updateZoom()}
+        function resetView(){currentZoom=380/(1.1*maxRadius),translateX=0,translateY=0,updateZoom()}
+        function updateZoom(){const e=`translate(${translateX}, ${translateY}) scale(${currentZoom})`;zoomContainer.setAttribute("transform",e),zoomContainer3D.setAttribute("transform",e)}
+
+        let isPanning=!1,startPoint={x:0,y:0},endPoint={x:0,y:0};
+        function startPan(e){isPanning=!0,startPoint={x:e.clientX,y:e.clientY}}
+        function pan(e){if(!isPanning)return;endPoint={x:e.clientX,y:e.clientY};const t=(endPoint.x-startPoint.x)/currentZoom,n=(endPoint.y-startPoint.y)/currentZoom;translateX+=t,translateY+=n,updateZoom(),startPoint={x:endPoint.x,y:endPoint.y}}
+        function endPan(){isPanning=!1}
+
+        spiral2D.addEventListener("mousedown",startPan),spiral2D.addEventListener("mousemove",pan),spiral2D.addEventListener("mouseup",endPan),spiral2D.addEventListener("mouseleave",endPan),spiral3D.addEventListener("mousedown",startPan),spiral3D.addEventListener("mousemove",pan),spiral3D.addEventListener("mouseup",endPan),spiral3D.addEventListener("mouseleave",endPan),updateSpiral();
     </script>
 </body>
 </html>

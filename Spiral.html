@@ -33,6 +33,7 @@
     </div>
     <div id="inputContainer">
         <label>Enter n values (comma separated): <input type="text" id="highlightInput"><button onclick="highlightAndConnect()">Highlight & Connect</button></label>
+        <label><input type="checkbox" id="showOnlyHighlights" onclick="updateVisibility()"> Only show Highlights and Connections</label>
     </div>
     <div class="spiralContainer">
         <svg id="spiral2D" viewBox="-400 -400 800 800">
@@ -141,6 +142,7 @@
             });
             connectPoints(points2D, zoomContainer);
             connectPoints(points3D, zoomContainer3D);
+            updateVisibility();
         }
 
         function toggleRadialLines() {
@@ -168,8 +170,24 @@
                     line.setAttribute("x2", points[index + 1].x);
                     line.setAttribute("y2", points[index + 1].y);
                     line.setAttribute("stroke", "darkred");
-                    line.setAttribute("stroke-width", 2);
+                    line.setAttribute("stroke-width", 1);
                     container.appendChild(line);
+                }
+            });
+        }
+
+        function updateVisibility() {
+            const showOnlyHighlights = document.getElementById('showOnlyHighlights').checked;
+            const allPoints2D = document.querySelectorAll('#zoomContainer text');
+            const allPoints3D = document.querySelectorAll('#zoomContainer3D text');
+            allPoints2D.forEach(point => {
+                if (!highlightedPoints.includes(point)) {
+                    point.style.display = showOnlyHighlights ? 'none' : '';
+                }
+            });
+            allPoints3D.forEach(point => {
+                if (!highlightedPoints.includes(point)) {
+                    point.style.display = showOnlyHighlights ? 'none' : '';
                 }
             });
         }

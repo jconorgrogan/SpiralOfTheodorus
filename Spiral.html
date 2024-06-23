@@ -33,6 +33,8 @@
     </div>
     <div id="inputContainer">
         <label>Enter n values (comma separated): <input type="text" id="highlightInput"><button onclick="highlightAndConnect()">Highlight & Connect</button></label>
+        <label>Enter n values (comma separated) for green: <input type="text" id="highlightInputGreen"><button onclick="highlightAndConnectGreen()">Highlight & Connect Green</button></label>
+        <label>Enter n values (comma separated) for blue: <input type="text" id="highlightInputBlue"><button onclick="highlightAndConnectBlue()">Highlight & Connect Blue</button></label>
         <label><input type="checkbox" id="showOnlyHighlights" onclick="updateVisibility()"> Only show Highlights and Connections</label>
     </div>
     <div class="spiralContainer">
@@ -50,7 +52,7 @@
 
     <script>
         const svgNS="http://www.w3.org/2000/svg",spiral2D=document.getElementById('spiral2D'),spiral3D=document.getElementById('spiral3D'),zoomContainer=document.getElementById('zoomContainer'),zoomContainer3D=document.getElementById('zoomContainer3D'),dataTable=document.getElementById('dataTable'),loopDataTable=document.getElementById('loopDataTable'),statusElement=document.getElementById('status'),colors=['#FF6B6B','#4ECDC4','#45B7D1','#FFA07A','#98D8C8','#F7DC6F','#FF9FF3','#54A0FF','#5CD859','#FF5252'];
-        let currentZoom=1,maxRadius=0,translateX=0,translateY=0,highlightedPoints=[],radialLinesVisible=true,pointSize=3;
+        let currentZoom=1,maxRadius=0,translateX=0,translateY=0,highlightedPoints=[],highlightedPointsGreen=[],highlightedPointsBlue=[],radialLinesVisible=true,pointSize=3;
 
         function updateSpiral(){const e=parseInt(document.getElementById('sliceCount').value);isNaN(e)||e<1?alert("Please enter a valid number greater than 0."):(statusElement.textContent="Generating spiral...",setTimeout(()=>createSpiral(e),0))}
 
@@ -140,8 +142,64 @@
                     highlightedPoints.push(point3D);
                 }
             });
-            connectPoints(points2D, zoomContainer);
-            connectPoints(points3D, zoomContainer3D);
+            connectPoints(points2D, zoomContainer, "darkred");
+            connectPoints(points3D, zoomContainer3D, "darkred");
+            updateVisibility();
+        }
+
+        function highlightAndConnectGreen() {
+            let input = document.getElementById('highlightInputGreen').value;
+            if (!input) return;
+            let numbers = input.split(',').map(Number).filter(n => !isNaN(n));
+            highlightedPointsGreen.forEach(p => p.remove());
+            highlightedPointsGreen = [];
+            let points2D = [], points3D = [];
+            numbers.forEach(n => {
+                let point2D = document.getElementById(`text2D-${n}`);
+                if (point2D) {
+                    point2D.setAttribute("font-weight", "bold");
+                    point2D.setAttribute("fill", "green");
+                    points2D.push({x: point2D.getAttribute("x"), y: point2D.getAttribute("y")});
+                    highlightedPointsGreen.push(point2D);
+                }
+                let point3D = document.getElementById(`text3D-${n}`);
+                if (point3D) {
+                    point3D.setAttribute("font-weight", "bold");
+                    point3D.setAttribute("fill", "green");
+                    points3D.push({x: point3D.getAttribute("x"), y: point3D.getAttribute("y")});
+                    highlightedPointsGreen.push(point3D);
+                }
+            });
+            connectPoints(points2D, zoomContainer, "darkgreen");
+            connectPoints(points3D, zoomContainer3D, "darkgreen");
+            updateVisibility();
+        }
+
+        function highlightAndConnectBlue() {
+            let input = document.getElementById('highlightInputBlue').value;
+            if (!input) return;
+            let numbers = input.split(',').map(Number).filter(n => !isNaN(n));
+            highlightedPointsBlue.forEach(p => p.remove());
+            highlightedPointsBlue = [];
+            let points2D = [], points3D = [];
+            numbers.forEach(n => {
+                let point2D = document.getElementById(`text2D-${n}`);
+                if (point2D) {
+                    point2D.setAttribute("font-weight", "bold");
+                    point2D.setAttribute("fill", "blue");
+                    points2D.push({x: point2D.getAttribute("x"), y: point2D.getAttribute("y")});
+                    highlightedPointsBlue.push(point2D);
+                }
+                let point3D = document.getElementById(`text3D-${n}`);
+                if (point3D) {
+                    point3D.setAttribute("font-weight", "bold");
+                    point3D.setAttribute("fill", "blue");
+                    points3D.push({x: point3D.getAttribute("x"), y: point3D.getAttribute("y")});
+                    highlightedPointsBlue.push(point3D);
+                }
+            });
+            connectPoints(points2D, zoomContainer, "darkblue");
+            connectPoints(points3D, zoomContainer3D, "darkblue");
             updateVisibility();
         }
 
@@ -161,7 +219,7 @@
             });
         }
 
-        function connectPoints(points, container) {
+        function connectPoints(points, container, color) {
             points.forEach((point, index) => {
                 if (index < points.length - 1) {
                     let line = document.createElementNS(svgNS, "line");
@@ -169,7 +227,7 @@
                     line.setAttribute("y1", point.y);
                     line.setAttribute("x2", points[index + 1].x);
                     line.setAttribute("y2", points[index + 1].y);
-                    line.setAttribute("stroke", "darkred");
+                    line.setAttribute("stroke", color);
                     line.setAttribute("stroke-width", 1);
                     container.appendChild(line);
                 }
@@ -181,12 +239,12 @@
             const allPoints2D = document.querySelectorAll('#zoomContainer text');
             const allPoints3D = document.querySelectorAll('#zoomContainer3D text');
             allPoints2D.forEach(point => {
-                if (!highlightedPoints.includes(point)) {
+                if (!highlightedPoints.includes(point) && !highlightedPointsGreen.includes(point) && !highlightedPointsBlue.includes(point)) {
                     point.style.display = showOnlyHighlights ? 'none' : '';
                 }
             });
             allPoints3D.forEach(point => {
-                if (!highlightedPoints.includes(point)) {
+                if (!highlightedPoints.includes(point) && !highlightedPointsGreen.includes(point) && !highlightedPointsBlue.includes(point)) {
                     point.style.display = showOnlyHighlights ? 'none' : '';
                 }
             });
@@ -197,6 +255,8 @@
         document.body.addEventListener("keypress", function (e) {
             if (e.key === "Enter") {
                 highlightAndConnect();
+                highlightAndConnectGreen();
+                highlightAndConnectBlue();
             }
         });
     </script>

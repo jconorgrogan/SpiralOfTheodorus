@@ -11,5 +11,6 @@ Access it directly here: https://jconorgrogan.github.io/SpiralOfTheodorus/Spiral
 
 <img width="477" alt="image" src="https://github.com/jconorgrogan/SpiralOfTheodorus/assets/130090573/44aa2a58-0d32-445d-a9fd-79be55415790">
 <img width="456" alt="image" src="https://github.com/jconorgrogan/SpiralOfTheodorus/assets/130090573/8aa3bc0c-c650-4248-adf8-2047c2e918ae">
-<img width="494" alt="image" src="https://github.com/jconorgrogan/SpiralOfTheodorus/assets/130090573/fb2035c0-c088-466f-a39c-589f2d9741dd">
+<img width="466" alt="image" src="https://github.com/jconorgrogan/SpiralOfTheodorus/assets/130090573/294bc30a-4e25-4f3e-a258-95925a54627f">
+
 

@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Spirals of Theodorus</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+            font-family: Arial, sans-serif;
+        }
+        svg {
+            max-width: 90vw;
+            max-height: 80vh;
+            border: 1px solid #ccc;
+        }
+        #controls {
+            margin-top: 20px;
+        }
+        button {
+            margin: 0 5px;
+            padding: 5px 10px;
+        }
+    </style>
+</head>
+<body>
+    <svg id="spiral" viewBox="-250 -250 500 500"></svg>
+    <div id="controls">
+        <button onclick="generateNewSpiral()">Generate New Spiral</button>
+        <button onclick="zoom(1.2)">Zoom In</button>
+        <button onclick="zoom(0.8)">Zoom Out</button>
+        <button onclick="clearPalette()">Clear Palette</button>
+        <button onclick="flipSelectedSpiral()">Flip Vertically</button>
+    </div>
+    <script>
+        const svgNS = "http://www.w3.org/2000/svg";
+        const spiral = document.getElementById('spiral');
+        const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#f9d56e', '#ff8a5c', '#a3de83', '#fc9d9d', '#7ac7c4', '#ffd082', '#b088f9'];
+        let spirals = [];
+        let selectedSpiral = null;
+        let draggedSpiral = null;
+        let dragStartX, dragStartY;
+        let isRotating = false;
+
+        class Spiral {
+            constructor(color) {
+                this.scale = 50;
+                this.maxRoot = 17;
+                this.x = 0;
+                this.y = 0;
+                this.rotation = 0;
+                this.flipped = false;
+                this.color = color;
+                this.group = document.createElementNS(svgNS, 'g');
+                this.group.addEventListener('mousedown', (e) => this.startDrag(e));
+                spiral.appendChild(this.group);
+                this.create();
+            }
+
+            create() {
+                this.group.innerHTML = '';
+                const trianglesGroup = document.createElementNS(svgNS, 'g');
+                const labelsGroup = document.createElementNS(svgNS, 'g');
+                this.group.appendChild(trianglesGroup);
+                this.group.appendChild(labelsGroup);
+
+                let points = [[0, 0]];
+                let totalAngle = 0;
+
+                for (let i = 1; i <= this.maxRoot; i++) {
+                    const hypotenuse = Math.sqrt(i) * this.scale;
+                    const x = Math.cos(totalAngle) * hypotenuse;
+                    const y = Math.sin(totalAngle) * hypotenuse;
+                    points.push([x, y]);
+
+                    if (i > 1) {
+                        const prevX = points[i-1][0];
+                        const prevY = points[i-1][1];
+                        
+                        const triangle = document.createElementNS(svgNS, 'path');
+                        triangle.setAttribute('d', `M 0 0 L ${prevX} ${-prevY} L ${x} ${-y} Z`);
+                        triangle.setAttribute('fill', 'none');
+                        triangle.setAttribute('stroke', this.color);
+                        triangle.setAttribute('stroke-width', '2');
+                        trianglesGroup.appendChild(triangle);
+
+                        const midX = x * 0.6;
+                        const midY = y * 0.6;
+                        const text = document.createElementNS(svgNS, 'text');
+                        text.setAttribute('x', midX);
+                        text.setAttribute('y', -midY);
+                        text.setAttribute('text-anchor', 'middle');
+                        text.setAttribute('dominant-baseline', 'middle');
+                        text.setAttribute('font-size', '12');
+                        text.setAttribute('fill', 'black');
+                        text.textContent = `√${i}`;
+                        labelsGroup.appendChild(text);
+                    }
+
+                    totalAngle += Math.atan(1 / Math.sqrt(i));
+                }
+
+                // Add rotation handle
+                const handle = document.createElementNS(svgNS, 'circle');
+                handle.setAttribute('cx', 0);
+                handle.setAttribute('cy', -120);
+                handle.setAttribute('r', 10);
+                handle.setAttribute('fill', this.color);
+                handle.setAttribute('cursor', 'pointer');
+                handle.addEventListener('mousedown', (e) => this.startRotation(e));
+                this.group.appendChild(handle);
+
+                this.updateTransform();
+            }
+
+            updateTransform() {
+                const flipScale = this.flipped ? 'scale(1,-1)' : '';
+                this.group.setAttribute('transform', `translate(${this.x},${this.y}) rotate(${this.rotation}) ${flipScale}`);
+            }
+
+            startDrag(e) {
+                e.stopPropagation();
+                draggedSpiral = this;
+                selectedSpiral = this;
+                const point = spiral.createSVGPoint();
+                point.x = e.clientX;
+                point.y = e.clientY;
+                const svgPoint = point.matrixTransform(spiral.getScreenCTM().inverse());
+                dragStartX = svgPoint.x - this.x;
+                dragStartY = svgPoint.y - this.y;
+            }
+
+            startRotation(e) {
+                e.stopPropagation();
+                isRotating = true;
+                selectedSpiral = this;
+                const point = spiral.createSVGPoint();
+                point.x = e.clientX;
+                point.y = e.clientY;
+                const svgPoint = point.matrixTransform(spiral.getScreenCTM().inverse());
+                dragStartX = svgPoint.x;
+                dragStartY = svgPoint.y;
+            }
+
+            rotate(x, y) {
+                const dx = x - this.x;
+                const dy = y - this.y;
+                this.rotation = (Math.atan2(dy, dx) * 180 / Math.PI + 90) % 360;
+                this.updateTransform();
+            }
+
+            flip() {
+                this.flipped = !this.flipped;
+                this.updateTransform();
+            }
+        }
+
+        function generateNewSpiral() {
+            if (spirals.length >= 15) {
+                alert("Maximum number of spirals (15) reached!");
+                return;
+            }
+            const color = colors[spirals.length % colors.length];
+            const newSpiral = new Spiral(color);
+            newSpiral.x = Math.random() * 400 - 200;
+            newSpiral.y = Math.random() * 400 - 200;
+            newSpiral.rotation = Math.random() * 360;
+            newSpiral.updateTransform();
+            spirals.push(newSpiral);
+        }
+
+        function zoom(factor) {
+            const viewBox = spiral.viewBox.baseVal;
+            const centerX = viewBox.x + viewBox.width / 2;
+            const centerY = viewBox.y + viewBox.height / 2;
+            const newWidth = viewBox.width / factor;
+            const newHeight = viewBox.height / factor;
+            const newX = centerX - newWidth / 2;
+            const newY = centerY - newHeight / 2;
+            spiral.setAttribute('viewBox', `${newX} ${newY} ${newWidth} ${newHeight}`);
+        }
+
+        function clearPalette() {
+            spirals.forEach(s => spiral.removeChild(s.group));
+            spirals = [];
+            selectedSpiral = null;
+            draggedSpiral = null;
+        }
+
+        function flipSelectedSpiral() {
+            if (selectedSpiral) {
+                selectedSpiral.flip();
+            }
+        }
+
+        spiral.addEventListener('mousemove', (e) => {
+            if (draggedSpiral || isRotating) {
+                const point = spiral.createSVGPoint();
+                point.x = e.clientX;
+                point.y = e.clientY;
+                const svgPoint = point.matrixTransform(spiral.getScreenCTM().inverse());
+                
+                if (isRotating && selectedSpiral) {
+                    selectedSpiral.rotate(svgPoint.x, svgPoint.y);
+                } else if (draggedSpiral) {
+                    draggedSpiral.x = svgPoint.x - dragStartX;
+                    draggedSpiral.y = svgPoint.y - dragStartY;
+                    draggedSpiral.updateTransform();
+                }
+            }
+        });
+
+        spiral.addEventListener('mouseup', () => {
+            draggedSpiral = null;
+            isRotating = false;
+        });
+
+        spiral.addEventListener('mouseleave', () => {
+            draggedSpiral = null;
+            isRotating = false;
+        });
+
+        generateNewSpiral();
+    </script>
+</body>
+</html>

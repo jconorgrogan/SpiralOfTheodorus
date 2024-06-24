@@ -6,7 +6,8 @@ Access it directly here: https://jconorgrogan.github.io/SpiralOfTheodorus/Spiral
 
 
 # Images 
-<img width="676" alt="image" src="https://github.com/jconorgrogan/SpiralOfTheodorus/assets/130090573/0851932e-5558-4011-95fc-769ad2648b81">
+<img width="676" alt="image" src="https://github.com/jconorgrogan/SpiralOfTheodorus/assets/130090573/2e7806b7-2e7a-4ffe-9b8d-67a7b3823019">
+
 
 <img width="477" alt="image" src="https://github.com/jconorgrogan/SpiralOfTheodorus/assets/130090573/44aa2a58-0d32-445d-a9fd-79be55415790">
 <img width="456" alt="image" src="https://github.com/jconorgrogan/SpiralOfTheodorus/assets/130090573/8aa3bc0c-c650-4248-adf8-2047c2e918ae">

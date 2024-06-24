@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Spiral of Theodorus with Extended Coordinates and Point-Only Visualization</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f0f0;
+            font-family: Arial, sans-serif;
+        }
+        svg {
+            max-width: 95vw;
+            max-height: 70vh;
+            border: 1px solid #ccc;
+            margin-bottom: 20px;
+        }
+        #controls {
+            margin-top: 20px;
+        }
+        button {
+            margin: 0 5px;
+        }
+        table {
+            margin-top: 20px;
+            margin-bottom: 20px;
+            border-collapse: collapse;
+            max-height: 400px;
+            overflow-y: auto;
+            display: block;
+        }
+        th, td {
+            border: 1px solid #ccc;
+            padding: 5px 10px;
+            text-align: left;
+            font-size: 12px;
+        }
+        th {
+            background-color: #f2f2f2;
+            position: sticky;
+            top: 0;
+        }
+    </style>
+</head>
+<body>
+    <svg id="spiral" viewBox="-400 -400 800 800"></svg>
+    <div id="controls">
+        <button onclick="zoom('spiral', 1.2)">Zoom In Spiral</button>
+        <button onclick="zoom('spiral', 0.8)">Zoom Out Spiral</button>
+    </div>
+    <table id="coordinatesTable">
+        <thead>
+            <tr>
+                <th>Spiral</th>
+                <th>Origin (√0)</th>
+                <th>Second Point (√1)</th>
+                <th>Third Point (√2)</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+    <svg id="pointsOnly" viewBox="-400 -400 800 800"></svg>
+    <div id="controls">
+        <button onclick="zoom('pointsOnly', 1.2)">Zoom In Points</button>
+        <button onclick="zoom('pointsOnly', 0.8)">Zoom Out Points</button>
+    </div>
+    <script>
+        const svgNS = "http://www.w3.org/2000/svg";
+        const spiral = document.getElementById('spiral');
+        const pointsOnly = document.getElementById('pointsOnly');
+        const coordinatesTable = document.getElementById('coordinatesTable').getElementsByTagName('tbody')[0];
+        let scale = 20;
+        let allPoints = [];
+        
+        function generateColors(numColors) {
+            const colors = [];
+            for (let i = 0; i < numColors; i++) {
+                const hue = (i * 137.508) % 360;
+                colors.push(`hsl(${hue}, 70%, 60%)`);
+            }
+            return colors;
+        }
+        
+        const colors = generateColors(86);
+
+        function createSpiral(startX = 0, startY = 0, startAngle = 0, spiralIndex = 0) {
+            const trianglesGroup = document.createElementNS(svgNS, 'g');
+            const labelsGroup = document.createElementNS(svgNS, 'g');
+            const markersGroup = document.createElementNS(svgNS, 'g');
+            spiral.appendChild(trianglesGroup);
+            spiral.appendChild(labelsGroup);
+            spiral.appendChild(markersGroup);
+
+            let points = [[startX, startY]];
+            let totalAngle = startAngle;
+            let loopCount = 0;
+
+            const spiralColor = colors[spiralIndex % colors.length];
+            const label = getLabelForIndex(spiralIndex);
+            addMarker(startX, startY, label, markersGroup, spiralColor);
+
+            for (let i = 1; i <= 5; i++) {
+                const hypotenuse = Math.sqrt(i) * scale;
+                const x = startX + Math.cos(totalAngle) * hypotenuse;
+                const y = startY + Math.sin(totalAngle) * hypotenuse;
+                points.push([x, y]);
+
+                const prevX = points[points.length - 2][0];
+                const prevY = points[points.length - 2][1];
+                
+                const triangle = document.createElementNS(svgNS, 'path');
+                triangle.setAttribute('d', `M ${startX} ${-startY} L ${prevX} ${-prevY} L ${x} ${-y} Z`);
+                triangle.setAttribute('fill', 'none');
+                triangle.setAttribute('stroke', spiralColor);
+                triangle.setAttribute('stroke-width', '0.5');
+                trianglesGroup.appendChild(triangle);
+
+                if (spiralIndex > 0 && i <= 2) {
+                    addMarker(x, y, `${label}${i}`, markersGroup, spiralColor);
+                } else if (spiralIndex === 0 || i > 2) {
+                    const midX = (x + prevX) / 2;
+                    const midY = (y + prevY) / 2;
+                    const text = document.createElementNS(svgNS, 'text');
+                    text.setAttribute('x', midX);
+                    text.setAttribute('y', -midY);
+                    text.setAttribute('text-anchor', 'middle');
+                    text.setAttribute('dominant-baseline', 'middle');
+                    text.setAttribute('font-size', '6');
+                    text.setAttribute('fill', spiralColor);
+                    text.textContent = `√${i}`;
+                    labelsGroup.appendChild(text);
+                }
+
+                totalAngle += Math.atan(1 / Math.sqrt(i));
+                if (totalAngle >= (loopCount + 1) * 2 * Math.PI) {
+                    loopCount++;
+                }
+            }
+
+            return points;
+        }
+
+        function getLabelForIndex(index) {
+            if (index < 26) return String.fromCharCode(65 + index);
+            const firstChar = String.fromCharCode(65 + Math.floor((index - 26) / 26));
+            const secondChar = String.fromCharCode(65 + ((index - 26) % 26));
+            return firstChar + secondChar;
+        }
+
+        function addMarker(x, y, label, group, color = 'red') {
+            const marker = document.createElementNS(svgNS, 'circle');
+            marker.setAttribute('cx', x);
+            marker.setAttribute('cy', -y);
+            marker.setAttribute('r', '1');
+            marker.setAttribute('fill', color);
+            group.appendChild(marker);
+
+            const text = document.createElementNS(svgNS, 'text');
+            text.setAttribute('x', x + 2);
+            text.setAttribute('y', -y - 2);
+            text.setAttribute('font-size', '4');
+            text.setAttribute('fill', color);
+            text.textContent = label;
+            group.appendChild(text);
+        }
+
+        function zoom(elementId, factor) {
+            const element = document.getElementById(elementId);
+            const viewBox = element.viewBox.baseVal;
+            const centerX = viewBox.x + viewBox.width / 2;
+            const centerY = viewBox.y + viewBox.height / 2;
+            const newWidth = viewBox.width / factor;
+            const newHeight = viewBox.height / factor;
+            const newX = centerX - newWidth / 2;
+            const newY = centerY - newHeight / 2;
+            element.setAttribute('viewBox', `${newX} ${newY} ${newWidth} ${newHeight}`);
+        }
+
+        function createAllSpirals() {
+            const mainPoints = createSpiral(0, 0, 0, 0);
+            addCoordinatesToTable('A', mainPoints);
+            allPoints = allPoints.concat(mainPoints.slice(0, 3));
+
+            function createNextSpiral(prevPoints, prevStartX, prevStartY, spiralIndex) {
+                const sqrt4X = prevPoints[4][0];
+                const sqrt4Y = prevPoints[4][1];
+                const startX = (prevStartX + sqrt4X) / 2;
+                const startY = (prevStartY + sqrt4Y) / 2;
+                const dx = sqrt4X - prevStartX;
+                const dy = sqrt4Y - prevStartY;
+                const startAngle = Math.atan2(dy, dx);
+                const label = getLabelForIndex(spiralIndex);
+                const points = createSpiral(startX, startY, startAngle, spiralIndex);
+                addCoordinatesToTable(label, points);
+                allPoints = allPoints.concat(points.slice(0, 3));
+                return points;
+            }
+
+            let prevPoints = mainPoints;
+            let prevStartX = 0;
+            let prevStartY = 0;
+
+            for (let i = 1; i < 86; i++) {
+                prevPoints = createNextSpiral(prevPoints, prevStartX, prevStartY, i);
+                prevStartX = prevPoints[0][0];
+                prevStartY = prevPoints[0][1];
+            }
+
+            createPointsOnlyVisualization();
+        }
+
+        function addCoordinatesToTable(spiralLabel, points) {
+            const row = coordinatesTable.insertRow();
+            const spiralCell = row.insertCell(0);
+            const originCell = row.insertCell(1);
+            const secondPointCell = row.insertCell(2);
+            const thirdPointCell = row.insertCell(3);
+            
+            spiralCell.textContent = spiralLabel;
+            originCell.textContent = formatCoordinate(points[0]);
+            secondPointCell.textContent = formatCoordinate(points[1]);
+            thirdPointCell.textContent = formatCoordinate(points[2]);
+        }
+
+        function formatCoordinate(point) {
+            return `(${(point[0]/scale).toFixed(6)}, ${(point[1]/scale).toFixed(6)})`;
+        }
+
+        function createPointsOnlyVisualization() {
+            const pointsGroup = document.createElementNS(svgNS, 'g');
+            pointsOnly.appendChild(pointsGroup);
+
+            allPoints.forEach((point, index) => {
+                const [x, y] = point;
+                const circle = document.createElementNS(svgNS, 'circle');
+                circle.setAttribute('cx', x);
+                circle.setAttribute('cy', -y);
+                circle.setAttribute('r', '1');
+                circle.setAttribute('fill', colors[Math.floor(index / 3) % colors.length]);
+                pointsGroup.appendChild(circle);
+            });
+        }
+
+        createAllSpirals();
+    </script>
+</body>
+</html>

@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simplified Interactive Spirals of Theodorus</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+            font-family: Arial, sans-serif;
+        }
+        svg {
+            max-width: 90vw;
+            max-height: 80vh;
+            border: 1px solid #ccc;
+        }
+        #controls {
+            margin-top: 20px;
+        }
+        button {
+            margin: 0 5px;
+            padding: 5px 10px;
+        }
+    </style>
+</head>
+<body>
+    <svg id="spiral" viewBox="-250 -250 500 500"></svg>
+    <div id="controls">
+        <button onclick="zoom(1.2)">Zoom In</button>
+        <button onclick="zoom(0.8)">Zoom Out</button>
+        <button onclick="addNewSpiral()">Add New Spiral</button>
+    </div>
+    <script>
+        const svgNS = "http://www.w3.org/2000/svg";
+        const spiral = document.getElementById('spiral');
+        const colors = ['#45b7d1', '#ff6b6b', '#4ecdc4', '#feca57', '#ff9ff3', '#54a0ff', '#5f27cd'];
+        let draggedSpiral = null;
+        let dragStartX, dragStartY;
+        let spiralCount = 0;
+
+        class Spiral {
+            constructor(color, scale = 50, rotation = 0, translateX = 0, translateY = 0) {
+                this.scale = scale;
+                this.maxRoot = 17;
+                this.rotation = rotation;
+                this.x = translateX;
+                this.y = translateY;
+                this.color = color;
+                this.group = document.createElementNS(svgNS, 'g');
+                this.group.addEventListener('mousedown', (e) => this.startDrag(e));
+                this.create();
+            }
+
+            create() {
+                this.group.innerHTML = '';
+                let points = [[0, 0]];
+                let totalAngle = 0;
+
+                for (let i = 1; i <= this.maxRoot; i++) {
+                    const hypotenuse = Math.sqrt(i) * this.scale;
+                    const x = Math.cos(totalAngle) * hypotenuse;
+                    const y = Math.sin(totalAngle) * hypotenuse;
+                    points.push([x, y]);
+
+                    if (i > 1) {
+                        const prevX = points[i-1][0];
+                        const prevY = points[i-1][1];
+                        
+                        const triangle = document.createElementNS(svgNS, 'path');
+                        triangle.setAttribute('d', `M 0 0 L ${prevX} ${-prevY} L ${x} ${-y} Z`);
+                        triangle.setAttribute('fill', 'none');
+                        triangle.setAttribute('stroke', this.color);
+                        triangle.setAttribute('stroke-width', '2');
+                        this.group.appendChild(triangle);
+
+                        const midX = x * 0.6;
+                        const midY = y * 0.6;
+                        const text = document.createElementNS(svgNS, 'text');
+                        text.setAttribute('x', midX);
+                        text.setAttribute('y', -midY);
+                        text.setAttribute('text-anchor', 'middle');
+                        text.setAttribute('dominant-baseline', 'middle');
+                        text.setAttribute('font-size', '12');
+                        text.setAttribute('fill', 'black');
+                        text.textContent = `√${i}`;
+                        this.group.appendChild(text);
+                    }
+
+                    totalAngle += Math.atan(1 / Math.sqrt(i));
+                }
+
+                this.updateTransform();
+            }
+
+            updateTransform() {
+                this.group.setAttribute('transform', `translate(${this.x},${this.y}) rotate(${this.rotation})`);
+            }
+
+            startDrag(e) {
+                e.stopPropagation();
+                draggedSpiral = this;
+                const point = spiral.createSVGPoint();
+                point.x = e.clientX;
+                point.y = e.clientY;
+                const svgPoint = point.matrixTransform(spiral.getScreenCTM().inverse());
+                dragStartX = svgPoint.x - this.x;
+                dragStartY = svgPoint.y - this.y;
+            }
+        }
+
+        function zoom(factor) {
+            const viewBox = spiral.viewBox.baseVal;
+            const centerX = viewBox.x + viewBox.width / 2;
+            const centerY = viewBox.y + viewBox.height / 2;
+            const newWidth = viewBox.width / factor;
+            const newHeight = viewBox.height / factor;
+            const newX = centerX - newWidth / 2;
+            const newY = centerY - newHeight / 2;
+            spiral.setAttribute('viewBox', `${newX} ${newY} ${newWidth} ${newHeight}`);
+        }
+
+        spiral.addEventListener('mousemove', (e) => {
+            if (draggedSpiral) {
+                const point = spiral.createSVGPoint();
+                point.x = e.clientX;
+                point.y = e.clientY;
+                const svgPoint = point.matrixTransform(spiral.getScreenCTM().inverse());
+                draggedSpiral.x = svgPoint.x - dragStartX;
+                draggedSpiral.y = svgPoint.y - dragStartY;
+                draggedSpiral.updateTransform();
+            }
+        });
+
+        document.addEventListener('mouseup', () => {
+            draggedSpiral = null;
+        });
+
+        spiral.addEventListener('mouseleave', () => {
+            draggedSpiral = null;
+        });
+
+        function createTwoSpirals() {
+            const scale = 50;
+            const sqrt4 = Math.sqrt(4) * scale;
+            
+            const angle4 = Math.atan(1) + Math.atan(1/Math.sqrt(2)) + Math.atan(1/Math.sqrt(3));
+            
+            const midX = sqrt4 * Math.cos(angle4) / 2;
+            const midY = sqrt4 * Math.sin(angle4) / 2;
+
+            const rotation2 = -angle4 * 180 / Math.PI;
+
+            addSpiral(scale, 0, 0, 0);
+            addSpiral(scale, rotation2, midX, -midY);
+        }
+
+        function addSpiral(scale, rotation, x, y) {
+            const color = colors[spiralCount % colors.length];
+            const newSpiral = new Spiral(color, scale, rotation, x, y);
+            spiral.appendChild(newSpiral.group);
+            spiralCount++;
+        }
+
+        function addNewSpiral() {
+            addSpiral(50, 0, 0, 0);
+        }
+
+        // Create the two initial spirals on page load
+        createTwoSpirals();
+    </script>
+</body>
+</html>

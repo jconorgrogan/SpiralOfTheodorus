@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Spiral of Theodorus</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+            font-family: Arial, sans-serif;
+        }
+        svg {
+            max-width: 90vw;
+            max-height: 80vh;
+            border: 1px solid #ccc;
+        }
+        #controls {
+            margin-top: 20px;
+        }
+        input, button {
+            margin: 0 5px;
+        }
+    </style>
+</head>
+<body>
+    <svg id="spiral" viewBox="-250 -250 500 500"></svg>
+    <div id="controls">
+        <label for="iterations">Iterations: </label>
+        <input type="number" id="iterations" min="1" max="100" value="17">
+        <button onclick="updateSpiral()">Update</button>
+        <button onclick="zoom(1.2)">Zoom In</button>
+        <button onclick="zoom(0.8)">Zoom Out</button>
+    </div>
+    <script>
+        const svgNS = "http://www.w3.org/2000/svg";
+        const spiral = document.getElementById('spiral');
+        let scale = 50;
+        const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#f9d56e', '#ff8a5c'];
+
+        function createSpiral(maxRoot) {
+            spiral.innerHTML = ''; // Clear previous spiral
+            let points = [[0, 0]];
+            let totalAngle = 0;
+            let loopCount = 0;
+
+            for (let i = 1; i <= maxRoot; i++) {
+                const hypotenuse = Math.sqrt(i) * scale;
+                const x = Math.cos(totalAngle) * hypotenuse;
+                const y = Math.sin(totalAngle) * hypotenuse;
+                points.push([x, y]);
+
+                if (i > 1) {
+                    const prevX = points[i-1][0];
+                    const prevY = points[i-1][1];
+                    
+                    // Draw the triangle
+                    const triangle = document.createElementNS(svgNS, 'path');
+                    triangle.setAttribute('d', `M 0 0 L ${prevX} ${-prevY} L ${x} ${-y} Z`);
+                    triangle.setAttribute('fill', 'none');
+                    triangle.setAttribute('stroke', colors[loopCount % colors.length]);
+                    triangle.setAttribute('stroke-width', '2');
+                    spiral.appendChild(triangle);
+
+                    // Add the square root label
+                    const midX = x * 0.6;
+                    const midY = y * 0.6;
+                    const text = document.createElementNS(svgNS, 'text');
+                    text.setAttribute('x', midX);
+                    text.setAttribute('y', -midY);
+                    text.setAttribute('text-anchor', 'middle');
+                    text.setAttribute('dominant-baseline', 'middle');
+                    text.setAttribute('font-size', '12');
+                    text.setAttribute('fill', 'black');
+                    text.textContent = `√${i}`;
+                    spiral.appendChild(text);
+                }
+
+                totalAngle += Math.atan(1 / Math.sqrt(i));
+                if (totalAngle >= (loopCount + 1) * 2 * Math.PI) {
+                    loopCount++;
+                }
+            }
+        }
+
+        function updateSpiral() {
+            const iterations = document.getElementById('iterations').value;
+            createSpiral(iterations);
+        }
+
+        function zoom(factor) {
+            const viewBox = spiral.viewBox.baseVal;
+            const centerX = viewBox.x + viewBox.width / 2;
+            const centerY = viewBox.y + viewBox.height / 2;
+            const newWidth = viewBox.width / factor;
+            const newHeight = viewBox.height / factor;
+            const newX = centerX - newWidth / 2;
+            const newY = centerY - newHeight / 2;
+            spiral.setAttribute('viewBox', `${newX} ${newY} ${newWidth} ${newHeight}`);
+        }
+
+        createSpiral(17); // Initial spiral
+    </script>
+</body>
+</html>

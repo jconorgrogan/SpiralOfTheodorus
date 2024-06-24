@@ -45,6 +45,11 @@
 
         function createSpiral(maxRoot) {
             spiral.innerHTML = ''; // Clear previous spiral
+            const trianglesGroup = document.createElementNS(svgNS, 'g');
+            const labelsGroup = document.createElementNS(svgNS, 'g');
+            spiral.appendChild(trianglesGroup);
+            spiral.appendChild(labelsGroup);
+
             let points = [[0, 0]];
             let totalAngle = 0;
             let loopCount = 0;
@@ -65,7 +70,7 @@
                     triangle.setAttribute('fill', 'none');
                     triangle.setAttribute('stroke', colors[loopCount % colors.length]);
                     triangle.setAttribute('stroke-width', '2');
-                    spiral.appendChild(triangle);
+                    trianglesGroup.appendChild(triangle);
 
                     // Add the square root label
                     const midX = x * 0.6;
@@ -78,7 +83,7 @@
                     text.setAttribute('font-size', '12');
                     text.setAttribute('fill', 'black');
                     text.textContent = `√${i}`;
-                    spiral.appendChild(text);
+                    labelsGroup.appendChild(text);
                 }
 
                 totalAngle += Math.atan(1 / Math.sqrt(i));

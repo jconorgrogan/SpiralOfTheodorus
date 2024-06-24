@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interactive Spiral of Theodorus to √17 without Labels</title>
+    <title>Interactive Spiral of Theodorus to n=200 with 186 Spirals and Minimal Line Thickness</title>
     <style>
         body {
             display: flex;
@@ -32,14 +32,14 @@
             margin-bottom: 20px;
             border-collapse: collapse;
             max-height: 400px;
-            overflow-y: auto;
+            overflow: auto;
             display: block;
         }
         th, td {
             border: 1px solid #ccc;
-            padding: 5px 10px;
+            padding: 2px 4px;
             text-align: left;
-            font-size: 10px;
+            font-size: 8px;
         }
         th {
             background-color: #f2f2f2;
@@ -49,7 +49,7 @@
     </style>
 </head>
 <body>
-    <svg id="spiral" viewBox="-600 -600 1200 1200"></svg>
+    <svg id="spiral" viewBox="-2000 -2000 4000 4000"></svg>
     <div id="controls">
         <button onclick="zoom('spiral', 1.2)">Zoom In Spiral</button>
         <button onclick="zoom('spiral', 0.8)">Zoom Out Spiral</button>
@@ -59,27 +59,12 @@
             <tr>
                 <th>Spiral</th>
                 <th>√0</th>
-                <th>√1</th>
-                <th>√2</th>
-                <th>√3</th>
-                <th>√4</th>
-                <th>√5</th>
-                <th>√6</th>
-                <th>√7</th>
-                <th>√8</th>
-                <th>√9</th>
-                <th>√10</th>
-                <th>√11</th>
-                <th>√12</th>
-                <th>√13</th>
-                <th>√14</th>
-                <th>√15</th>
-                <th>√16</th>
+                <!-- The rest of the headers will be added dynamically -->
             </tr>
         </thead>
         <tbody></tbody>
     </table>
-    <svg id="pointsOnly" viewBox="-600 -600 1200 1200"></svg>
+    <svg id="pointsOnly" viewBox="-2000 -2000 4000 4000"></svg>
     <div id="controls">
         <button onclick="zoom('pointsOnly', 1.2)">Zoom In Points</button>
         <button onclick="zoom('pointsOnly', 0.8)">Zoom Out Points</button>
@@ -88,20 +73,22 @@
         const svgNS = "http://www.w3.org/2000/svg";
         const spiral = document.getElementById('spiral');
         const pointsOnly = document.getElementById('pointsOnly');
-        const coordinatesTable = document.getElementById('coordinatesTable').getElementsByTagName('tbody')[0];
-        let scale = 15;
+        const coordinatesTable = document.getElementById('coordinatesTable');
+        let scale = 2;
         let allPoints = [];
         
         function generateColors(numColors) {
             const colors = [];
             for (let i = 0; i < numColors; i++) {
                 const hue = (i * 137.508) % 360;
-                colors.push(`hsl(${hue}, 70%, 60%)`);
+                const saturation = 70 + (i % 3) * 10;
+                const lightness = 60 + (i % 5) * 5;
+                colors.push(`hsl(${hue}, ${saturation}%, ${lightness}%)`);
             }
             return colors;
         }
         
-        const colors = generateColors(86);
+        const colors = generateColors(186);
 
         function createSpiral(startX = 0, startY = 0, startAngle = 0, spiralIndex = 0) {
             const trianglesGroup = document.createElementNS(svgNS, 'g');
@@ -113,7 +100,7 @@
 
             const spiralColor = colors[spiralIndex % colors.length];
 
-            for (let i = 1; i <= 17; i++) {
+            for (let i = 1; i <= 200; i++) {
                 const hypotenuse = Math.sqrt(i) * scale;
                 const x = startX + Math.cos(totalAngle) * hypotenuse;
                 const y = startY + Math.sin(totalAngle) * hypotenuse;
@@ -126,7 +113,7 @@
                 triangle.setAttribute('d', `M ${startX} ${-startY} L ${prevX} ${-prevY} L ${x} ${-y} Z`);
                 triangle.setAttribute('fill', 'none');
                 triangle.setAttribute('stroke', spiralColor);
-                triangle.setAttribute('stroke-width', '0.5');
+                triangle.setAttribute('stroke-width', '0.1'); // Reduced line thickness
                 trianglesGroup.appendChild(triangle);
 
                 totalAngle += Math.atan(1 / Math.sqrt(i));
@@ -140,8 +127,8 @@
 
         function getLabelForIndex(index) {
             if (index < 26) return String.fromCharCode(65 + index);
-            const firstChar = String.fromCharCode(65 + Math.floor((index - 26) / 26));
-            const secondChar = String.fromCharCode(65 + ((index - 26) % 26));
+            const firstChar = String.fromCharCode(65 + Math.floor(index / 26) - 1);
+            const secondChar = String.fromCharCode(65 + (index % 26));
             return firstChar + secondChar;
         }
 
@@ -181,7 +168,7 @@
             let prevStartX = 0;
             let prevStartY = 0;
 
-            for (let i = 1; i < 86; i++) {
+            for (let i = 1; i < 186; i++) {
                 prevPoints = createNextSpiral(prevPoints, prevStartX, prevStartY, i);
                 prevStartX = prevPoints[0][0];
                 prevStartY = prevPoints[0][1];
@@ -191,18 +178,18 @@
         }
 
         function addCoordinatesToTable(spiralLabel, points) {
-            const row = coordinatesTable.insertRow();
+            const row = coordinatesTable.tBodies[0].insertRow();
             const spiralCell = row.insertCell(0);
             spiralCell.textContent = spiralLabel;
             
-            for (let i = 0; i < 18; i++) {
+            for (let i = 0; i < 201; i++) {
                 const cell = row.insertCell(i + 1);
                 cell.textContent = formatCoordinate(points[i]);
             }
         }
 
         function formatCoordinate(point) {
-            return `(${(point[0]/scale).toFixed(4)}, ${(point[1]/scale).toFixed(4)})`;
+            return `(${(point[0]/scale).toFixed(2)}, ${(point[1]/scale).toFixed(2)})`;
         }
 
         function createPointsOnlyVisualization() {
@@ -214,10 +201,18 @@
                 const circle = document.createElementNS(svgNS, 'circle');
                 circle.setAttribute('cx', x);
                 circle.setAttribute('cy', -y);
-                circle.setAttribute('r', '1');
-                circle.setAttribute('fill', colors[Math.floor(index / 18) % colors.length]);
+                circle.setAttribute('r', '0.2'); // Reduced point size
+                circle.setAttribute('fill', colors[Math.floor(index / 201) % colors.length]);
                 pointsGroup.appendChild(circle);
             });
+        }
+
+        // Add table headers dynamically
+        const headerRow = coordinatesTable.tHead.rows[0];
+        for (let i = 1; i <= 200; i++) {
+            const th = document.createElement('th');
+            th.textContent = `√${i}`;
+            headerRow.appendChild(th);
         }
 
         createAllSpirals();

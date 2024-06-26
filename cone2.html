@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Cone of Theodorus</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f0f0;
+            font-family: Arial, sans-serif;
+        }
+        svg {
+            width: 80vw;
+            height: 80vh;
+            border: 1px solid #ccc;
+            margin: 10px;
+        }
+        #controls {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        .control-group {
+            margin: 10px;
+        }
+        input[type="number"], input[type="range"] {
+            width: 60px;
+        }
+        button {
+            margin: 0 5px;
+        }
+        #loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">Calculating spirals... Please wait.</div>
+    <h1>Fully Calculated Animated Spiral of Theodorus</h1>
+    <div id="controls">
+        <div class="control-group">
+            <label for="endSpirals">Number of Spirals:</label>
+            <input type="number" id="endSpirals" min="1" max="10000" value="100">
+        </div>
+        <div class="control-group">
+            <label for="endPoints">Points per Spiral:</label>
+            <input type="number" id="endPoints" min="1" max="1000" value="100">
+        </div>
+        <div class="control-group">
+            <label for="animationSpeed">Animation Speed:</label>
+            <input type="range" id="animationSpeed" min="1" max="100" value="50">
+        </div>
+        <div class="control-group">
+            <label for="zoom">Zoom:</label>
+            <input type="range" id="zoom" min="1" max="100" value="50">
+        </div>
+        <div class="control-group">
+            <button id="startAnimation">Start/Resume</button>
+            <button id="pauseAnimation">Pause</button>
+            <button id="resetAnimation">Reset</button>
+        </div>
+    </div>
+    <svg id="spiral" viewBox="-20 -20 40 40"></svg>
+    <div id="info">
+        Spirals: <span id="spiralCount">0</span>, Current Points: <span id="pointCount">0</span>
+    </div>
+    <script>
+        const svgNS = "http://www.w3.org/2000/svg";
+        const spiral = document.getElementById('spiral');
+        let scale = 0.5;
+        let preComputedSpirals = [];
+        let colors = [];
+        let animationFrame;
+        let activeSpirals = 1;
+        let currentPoints = [];
+        let isAnimating = false;
+        let maxSpirals, maxPoints;
+
+        function generateColors(numColors) {
+            const colors = new Array(numColors);
+            for (let i = 0; i < numColors; i++) {
+                const hue = (i * 137.508) % 360;
+                const saturation = 70 + (i % 3) * 10;
+                const lightness = 60 + (i % 5) * 5;
+                colors[i] = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+            }
+            return colors;
+        }
+
+        function createSpiral(startX, startY, startZ, startAngle, n, maxDiameter, currentHeight, totalHeight) {
+            let points = new Float32Array(n * 3);
+            let totalAngle = startAngle;
+            let x = startX, y = startY, z = startZ;
+
+            points[0] = x;
+            points[1] = y;
+            points[2] = z;
+
+            for (let i = 1; i < n; i++) {
+                const hypotenuse = Math.sqrt(i + 1) * scale;
+                const diameterFactor = Math.sin(Math.PI * currentHeight / totalHeight);
+                const adjustedHypotenuse = hypotenuse * diameterFactor;
+                x = startX + Math.cos(totalAngle) * adjustedHypotenuse;
+                y = startY + Math.sin(totalAngle) * adjustedHypotenuse;
+                z = startZ + (i / (n - 1)) * (totalHeight / maxSpirals) * (currentHeight < totalHeight / 2 ? 1 : -1);
+                points[i * 3] = x;
+                points[i * 3 + 1] = y;
+                points[i * 3 + 2] = z;
+                totalAngle += Math.atan(1 / Math.sqrt(i + 1));
+            }
+
+            return points;
+        }
+
+        function preComputeAllSpirals(numSpirals, n, maxDiameter, totalHeight) {
+            preComputedSpirals = new Array(numSpirals);
+            let prevX = 0, prevY = 0, prevZ = -totalHeight / 2, prevAngle = 0;
+
+            for (let i = 0; i < numSpirals; i++) {
+                const points = createSpiral(prevX, prevY, prevZ, prevAngle, n, maxDiameter, i, totalHeight);
+                preComputedSpirals[i] = points;
+
+                const sqrt4Index = 24; // Index for n=4 (√4 point) (3 coordinates per point)
+                const sqrt4X = points[sqrt4Index];
+                const sqrt4Y = points[sqrt4Index + 1];
+                const sqrt4Z = points[sqrt4Index + 2];
+                prevX = (prevX + sqrt4X) / 2;
+                prevY = (prevY + sqrt4Y) / 2;
+                prevZ = sqrt4Z;
+                const dx = sqrt4X - points[0];
+                const dy = sqrt4Y - points[1];
+                prevAngle = Math.atan2(dy, dx);
+            }
+        }
+
+        function renderSpiral() {
+            const fragment = document.createDocumentFragment();
+
+            for (let i = 0; i < activeSpirals; i++) {
+                const spiralPoints = preComputedSpirals[i];
+                const spiralColor = colors[i % colors.length];
+                const currentPointCount = currentPoints[i] * 2;
+                
+                const outerPath = document.createElementNS(svgNS, 'path');
+                outerPath.setAttribute('d', getPathFromPoints(spiralPoints, currentPointCount));
+                outerPath.setAttribute('stroke', spiralColor);
+                outerPath.setAttribute('stroke-width', '0.05');
+                outerPath.setAttribute('fill', 'none');
+                fragment.appendChild(outerPath);
+
+                const innerPath = document.createElementNS(svgNS, 'path');
+                innerPath.setAttribute('d', getInnerPathFromPoints(spiralPoints, currentPointCount));
+                innerPath.setAttribute('stroke', spiralColor);
+                innerPath.setAttribute('stroke-width', '0.025');
+                innerPath.setAttribute('fill', 'none');
+                fragment.appendChild(innerPath);
+
+                for (let j = 0; j < currentPointCount; j += 2) {
+                    const circle = document.createElementNS(svgNS, 'circle');
+                    circle.setAttribute('cx', spiralPoints[j]);
+                    circle.setAttribute('cy', -spiralPoints[j+1]);
+                    circle.setAttribute('r', '0.05');
+                    circle.setAttribute('fill', spiralColor);
+                    fragment.appendChild(circle);
+                }
+            }
+
+            spiral.innerHTML = '';
+            spiral.appendChild(fragment);
+        }
+
+        function getPathFromPoints(points, length) {
+            let path = `M ${points[0]} ${-points[1]}`;
+            for (let i = 2; i < length; i += 2) {
+                path += ` L ${points[i]} ${-points[i+1]}`;
+            }
+            return path;
+        }
+
+        function getInnerPathFromPoints(points, length) {
+            let path = '';
+            for (let i = 2; i < length; i += 2) {
+                path += `M ${points[0]} ${-points[1]} L ${points[i]} ${-points[i+1]}`;
+            }
+            return path;
+        }
+
+        function updateVisualization() {
+            renderSpiral();
+            document.getElementById('spiralCount').textContent = activeSpirals;
+            document.getElementById('pointCount').textContent = Math.max(...currentPoints);
+        }
+
+        function animate() {
+            if (!isAnimating) return;
+
+            let allComplete = true;
+            for (let i = 0; i < activeSpirals; i++) {
+                if (currentPoints[i] < maxPoints) {
+                    currentPoints[i]++;
+                    allComplete = false;
+                }
+            }
+            
+            // Check if we can start the next spiral
+            if (activeSpirals < maxSpirals && currentPoints[activeSpirals - 1] > 4) {
+                activeSpirals++;
+                currentPoints[activeSpirals - 1] = 0; // Start the new spiral at 0 points
+                allComplete = false;
+            }
+
+            if (allComplete) {
+                isAnimating = false;
+            }
+
+            updateVisualization();
+
+            if (isAnimating) {
+                const speed = parseInt(document.getElementById('animationSpeed').value);
+                setTimeout(() => requestAnimationFrame(animate), 1000 / speed);
+            }
+        }
+
+        document.getElementById('startAnimation').addEventListener('click', () => {
+            if (!isAnimating) {
+                isAnimating = true;
+                requestAnimationFrame(animate);
+            }
+        });
+
+        document.getElementById('pauseAnimation').addEventListener('click', () => {
+            isAnimating = false;
+        });
+
+        document.getElementById('resetAnimation').addEventListener('click', () => {
+            isAnimating = false;
+            activeSpirals = 1;
+            currentPoints = [0];
+            maxSpirals = parseInt(document.getElementById('endSpirals').value);
+            maxPoints = parseInt(document.getElementById('endPoints').value);
+            preComputeAllSpirals(maxSpirals, maxPoints);
+            colors = generateColors(maxSpirals);
+            updateVisualization();
+        });
+
+        document.getElementById('zoom').addEventListener('input', (e) => {
+            const zoomValue = e.target.value;
+            const viewBox = 40 * (100 - zoomValue) / 100;
+            const viewBoxValue = `-${viewBox/2} -${viewBox/2} ${viewBox} ${viewBox}`;
+            spiral.setAttribute('viewBox', viewBoxValue);
+        });
+
+        // Update the preComputeAllSpirals calls in the event listeners:
+        document.getElementById('endSpirals').addEventListener('change', () => {
+            maxSpirals = parseInt(document.getElementById('endSpirals').value);
+            preComputeAllSpirals(maxSpirals, maxPoints, 10, 20); // Adjust maxDiameter and totalHeight as needed
+            colors = generateColors(maxSpirals);
+            if (activeSpirals > maxSpirals) {
+                activeSpirals = maxSpirals;
+                currentPoints = currentPoints.slice(0, maxSpirals);
+            }
+            updateVisualization();
+        });
+
+        document.getElementById('endPoints').addEventListener('change', () => {
+            maxPoints = parseInt(document.getElementById('endPoints').value);
+            preComputeAllSpirals(maxSpirals, maxPoints, 10, 20); // Adjust maxDiameter and totalHeight as needed
+            currentPoints = currentPoints.map(points => Math.min(points, maxPoints));
+            updateVisualization();
+        });
+
+        // Pre-computation and initial setup
+        window.addEventListener('load', () => {
+            maxSpirals = parseInt(document.getElementById('endSpirals').value);
+            maxPoints = parseInt(document.getElementById('endPoints').value);
+            colors = generateColors(maxSpirals);
+            currentPoints = [0];
+
+            setTimeout(() => {
+                preComputeAllSpirals(maxSpirals, maxPoints, 10, 20); // Adjust maxDiameter and totalHeight as needed
+                document.getElementById('loading').style.display = 'none';
+                updateVisualization();
+            }, 100);
+        });
+    </script>
+</body>
+</html>

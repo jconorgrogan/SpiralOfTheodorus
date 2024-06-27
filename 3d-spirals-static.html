@@ -3,20 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D Spiral of Theodorus</title>
+    <title>3D Spiral of Theodorus - Customizable</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/OrbitControls.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <style>
         body { margin: 0; display: flex; flex-direction: column; align-items: center; font-family: Arial, sans-serif; }
         #controls { display: flex; flex-wrap: wrap; justify-content: center; margin: 10px; }
         .control-group { margin: 5px; }
-        #renderArea { width: 800px; height: 600px; }
+        canvas { width: 800px; height: 600px; }
     </style>
 </head>
 <body>
-    <h1>3D Spiral of Theodorus</h1>
+    <h1>3D Spiral of Theodorus - Customizable</h1>
     <div id="controls">
+        <!-- Existing controls -->
         <div class="control-group">
             <label for="maxDepth">Max Depth:</label>
             <input type="number" id="maxDepth" min="1" max="5" value="3">
@@ -38,10 +38,50 @@
             <input type="number" id="globalMatrixSize" min="3" max="5" value="3">
         </div>
         <div class="control-group">
-            <label for="eigenvalueRange">Eigenvalue Range:</label>
-            <input type="number" id="eigenvalueMin" step="0.1" value="-1"> to
+            <label for="eigenvalueMin">Eigenvalue Min:</label>
+            <input type="number" id="eigenvalueMin" step="0.1" value="-1">
+        </div>
+        <div class="control-group">
+            <label for="eigenvalueMax">Eigenvalue Max:</label>
             <input type="number" id="eigenvalueMax" step="0.1" value="1">
         </div>
+        
+        <!-- New camera controls -->
+        <div class="control-group">
+            <label for="cameraX">Camera X:</label>
+            <input type="number" id="cameraX" step="0.1" value="5">
+        </div>
+        <div class="control-group">
+            <label for="cameraY">Camera Y:</label>
+            <input type="number" id="cameraY" step="0.1" value="5">
+        </div>
+        <div class="control-group">
+            <label for="cameraZ">Camera Z:</label>
+            <input type="number" id="cameraZ" step="0.1" value="5">
+        </div>
+        
+        <!-- Rendering controls -->
+        <div class="control-group">
+            <label for="backgroundColor">Background Color:</label>
+            <input type="color" id="backgroundColor" value="#000000">
+        </div>
+        <div class="control-group">
+            <label for="spiralLineWidth">Spiral Line Width:</label>
+            <input type="number" id="spiralLineWidth" min="1" max="10" value="1">
+        </div>
+        <div class="control-group">
+            <label for="gridSize">Grid Size:</label>
+            <input type="number" id="gridSize" min="5" max="20" value="10">
+        </div>
+        <div class="control-group">
+            <label for="gridDivisions">Grid Divisions:</label>
+            <input type="number" id="gridDivisions" min="5" max="20" value="10">
+        </div>
+        <div class="control-group">
+            <label for="gridColor">Grid Color:</label>
+            <input type="color" id="gridColor" value="#444444">
+        </div>
+        
         <div class="control-group">
             <button id="generate">Generate</button>
             <button id="downloadMath">Download Math</button>
@@ -52,7 +92,7 @@
 
     <script>
         let spirals = [];
-        let scene, camera, renderer, controls;
+        let scene, camera, renderer, grid;
 
         class SpiralPoint {
             constructor(x, y, z, angle, depth) {
@@ -145,21 +185,12 @@
         function initThreeJS() {
             scene = new THREE.Scene();
             camera = new THREE.PerspectiveCamera(75, 800 / 600, 0.1, 1000);
-            renderer = new THREE.WebGLRenderer();
+            renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(800, 600);
             document.getElementById('renderArea').appendChild(renderer.domElement);
 
-            camera.position.z = 5;
-
-            // Add OrbitControls
-            controls = new THREE.OrbitControls(camera, renderer.domElement);
-            controls.enableDamping = true;
-            controls.dampingFactor = 0.25;
-            controls.screenSpacePanning = false;
-            controls.maxPolarAngle = Math.PI / 2;
-
             // Add ambient light
-            const ambientLight = new THREE.AmbientLight(0x404040);
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
             scene.add(ambientLight);
 
             // Add directional light
@@ -167,20 +198,43 @@
             directionalLight.position.set(1, 1, 1);
             scene.add(directionalLight);
 
-            animate();
+            updateCameraPosition();
+            updateGridAndBackground();
         }
 
-        function animate() {
-            requestAnimationFrame(animate);
-            controls.update();
-            renderer.render(scene, camera);
+        function updateCameraPosition() {
+            const x = parseFloat(document.getElementById('cameraX').value);
+            const y = parseFloat(document.getElementById('cameraY').value);
+            const z = parseFloat(document.getElementById('cameraZ').value);
+            camera.position.set(x, y, z);
+            camera.lookAt(0, 0, 0);
+        }
+
+        function updateGridAndBackground() {
+            // Remove existing grid if any
+            if (grid) scene.remove(grid);
+
+            const gridSize = parseInt(document.getElementById('gridSize').value);
+            const gridDivisions = parseInt(document.getElementById('gridDivisions').value);
+            const gridColor = document.getElementById('gridColor').value;
+
+            grid = new THREE.GridHelper(gridSize, gridDivisions, gridColor, gridColor);
+            scene.add(grid);
+
+            const backgroundColor = document.getElementById('backgroundColor').value;
+            scene.background = new THREE.Color(backgroundColor);
         }
 
         function renderSpirals() {
-            scene.clear();
+            // Clear existing spirals
+            scene.children = scene.children.filter(child => !(child instanceof THREE.Line));
+
+            const lineWidth = parseFloat(document.getElementById('spiralLineWidth').value);
+
             spirals.forEach((spiral, index) => {
                 const material = new THREE.LineBasicMaterial({
-                    color: new THREE.Color(`hsl(${index * 137.5 % 360}, 50%, 50%)`)
+                    color: new THREE.Color(`hsl(${index * 137.5 % 360}, 50%, 50%)`),
+                    linewidth: lineWidth
                 });
                 const geometry = new THREE.BufferGeometry().setFromPoints(
                     spiral.points.map(p => new THREE.Vector3(p.x, p.y, p.z))
@@ -188,6 +242,10 @@
                 const line = new THREE.Line(geometry, material);
                 scene.add(line);
             });
+
+            updateCameraPosition();
+            updateGridAndBackground();
+            renderer.render(scene, camera);
         }
 
         function downloadMathResults(data) {
@@ -214,7 +272,12 @@
 
         document.getElementById('downloadPlot').addEventListener('click', downloadPlot);
 
+        // Add event listeners for camera and rendering controls
+        ['cameraX', 'cameraY', 'cameraZ', 'backgroundColor', 'spiralLineWidth', 'gridSize', 'gridDivisions', 'gridColor'].forEach(id => {
+            document.getElementById(id).addEventListener('change', renderSpirals);
+        });
+
         initThreeJS();
     </script>
 </body>
-</html> 
+</html>

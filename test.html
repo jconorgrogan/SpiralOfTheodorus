@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced Spiral of Theodorus v2 - Three.js</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            overflow: hidden;
+        }
+        canvas {
+            display: block;
+        }
+        #controls {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            display: flex;
+            flex-wrap: wrap;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+        }
+        .control-group {
+            margin: 10px;
+        }
+        input[type="number"], input[type="range"] {
+            width: 60px;
+        }
+        button {
+            margin: 0 5px;
+        }
+    </style>
+</head>
+<body>
+    <div id="controls">
+        <div class="control-group">
+            <label for="maxDepth">Max Depth:</label>
+            <input type="number" id="maxDepth" min="1" max="5" value="3">
+        </div>
+        <div class="control-group">
+            <label for="pointsPerSpiral">Points/Spiral:</label>
+            <input type="number" id="pointsPerSpiral" min="10" max="100" value="30">
+        </div>
+        <div class="control-group">
+            <label for="animationSpeed">Speed:</label>
+            <input type="range" id="animationSpeed" min="1" max="100" value="50">
+        </div>
+        <div class="control-group">
+            <button id="startAnimation">Start/Resume</button>
+            <button id="pauseAnimation">Pause</button>
+            <button id="resetAnimation">Reset</button>
+        </div>
+    </div>
+    <div id="info">
+        Spirals: <span id="spiralCount">0</span>, Points: <span id="pointCount">0</span>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        let scene, camera, renderer, spirals = [], isAnimating = false;
+        let maxDepth, pointsPerSpiral, colors = [], scale = 0.2;
+
+        class SpiralPoint {
+            constructor(x, y, z, angle, depth) {
+                this.x = x;
+                this.y = y;
+                this.z = z;
+                this.angle = angle;
+                this.depth = depth;
+            }
+        }
+
+        class Spiral {
+            constructor(startX, startY, startZ, startAngle, depth) {
+                this.points = [new SpiralPoint(startX, startY, startZ, startAngle, depth)];
+                this.depth = depth;
+                this.currentPoint = 0;
+                this.geometry = new THREE.Geometry();
+                this.material = new THREE.LineBasicMaterial({ color: colors[depth % colors.length] });
+                this.line = new THREE.Line(this.geometry, this.material);
+                scene.add(this.line);
+            }
+
+            growPoint() {
+                if (this.currentPoint >= pointsPerSpiral - 1) return false;
+                
+                const lastPoint = this.points[this.currentPoint];
+                const n = this.currentPoint + 2;
+                const hypotenuse = Math.sqrt(n) * scale;
+                const newAngle = lastPoint.angle + Math.atan(1 / Math.sqrt(n - 1));
+                const newX = lastPoint.x + Math.cos(newAngle) * hypotenuse;
+                const newY = lastPoint.y + Math.sin(newAngle) * hypotenuse;
+                const newZ = 0;  // We keep z constant for 2D spirals
+                
+                this.points.push(new SpiralPoint(newX, newY, newZ, newAngle, this.depth));
+                this.currentPoint++;
+
+                // Update geometry
+                this.geometry.vertices.push(new THREE.Vector3(newX, newY, newZ));
+                this.geometry.verticesNeedUpdate = true;
+
+                if (Math.sqrt(n) % 1 === 0 && n > 1 && this.depth < maxDepth) {
+                    const sqrtN = Math.sqrt(n);
+                    const spawnRatio = (sqrtN - 1) / sqrtN;
+                    const spawnX = newX * spawnRatio + lastPoint.x * (1 - spawnRatio);
+                    const spawnY = newY * spawnRatio + lastPoint.y * (1 - spawnRatio);
+                    const spawnAngle = Math.atan2(newY - lastPoint.y, newX - lastPoint.x);
+                    spirals.push(new Spiral(spawnX, spawnY, newZ, spawnAngle, this.depth + 1));
+                }
+
+                return true;
+            }
+        }
+
+        function generateColors(numColors) {
+            return Array.from({ length: numColors }, (_, i) =>
+                new THREE.Color(`hsl(${i * 137.508 % 360}, ${70 + i % 3 * 10}%, ${60 + i % 5 * 5}%)`)
+            );
+        }
+
+        function init() {
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 50;
+
+            renderer = new THREE.WebGLRenderer();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            colors = generateColors(100);
+            initializeSpirals();
+
+            window.addEventListener('resize', onWindowResize, false);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function initializeSpirals() {
+            isAnimating = false;
+            maxDepth = parseInt(document.getElementById('maxDepth').value);
+            pointsPerSpiral = parseInt(document.getElementById('pointsPerSpiral').value);
+            spirals = [new Spiral(0, 0, 0, 0, 0)];
+            updateVisualization();
+        }
+
+        function updateVisualization() {
+            document.getElementById('spiralCount').textContent = spirals.length;
+            document.getElementById('pointCount').textContent = spirals.reduce((sum, s) => sum + s.currentPoint, 0);
+        }
+
+        function animate() {
+            if (!isAnimating) return;
+            let grew = false;
+            for (let s of spirals) {
+                if (s.growPoint()) {
+                    grew = true;
+                }
+            }
+            if (!grew) isAnimating = false;
+            updateVisualization();
+            renderer.render(scene, camera);
+            if (isAnimating) {
+                const speed = parseInt(document.getElementById('animationSpeed').value);
+                setTimeout(() => requestAnimationFrame(animate), 1000 / speed);
+            }
+        }
+
+        document.getElementById('startAnimation').addEventListener('click', () => {
+            if (!isAnimating) {
+                isAnimating = true;
+                requestAnimationFrame(animate);
+            }
+        });
+        document.getElementById('pauseAnimation').addEventListener('click', () => isAnimating = false);
+        document.getElementById('resetAnimation').addEventListener('click', initializeSpirals);
+        document.getElementById('maxDepth').addEventListener('change', initializeSpirals);
+        document.getElementById('pointsPerSpiral').addEventListener('change', initializeSpirals);
+
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>

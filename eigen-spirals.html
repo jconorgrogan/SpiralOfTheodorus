@@ -50,6 +50,10 @@
             <input type="range" id="animationSpeed" min="1" max="100" value="50">
         </div>
         <div class="control-group">
+    <label for="globalMatrixSize">Global Matrix Size:</label>
+    <input type="number" id="globalMatrixSize" min="2" max="5" value="3">
+</div>
+        <div class="control-group">
             <button id="startAnimation">Start/Resume</button>
             <button id="pauseAnimation">Pause</button>
             <button id="resetAnimation">Reset</button>
@@ -66,6 +70,10 @@
             <label for="eigenvalueRange">Eigenvalue Range:</label>
             <input type="number" id="eigenvalueMin" step="0.1" value="-1"> to
             <input type="number" id="eigenvalueMax" step="0.1" value="1">
+        </div>
+        <div class="control-group">
+            <label for="globalMatrixSize">Global Matrix Size:</label>
+            <input type="number" id="globalMatrixSize" min="2" max="5" value="3">
         </div>
     </div>
     <svg id="spiral" viewBox="-10 -10 20 20"></svg>
@@ -182,6 +190,8 @@
             }
         }
 
+        
+
         document.getElementById('startAnimation').addEventListener('click', () => {
             if (!isAnimating) {
                 isAnimating = true;
@@ -252,6 +262,8 @@
 
             return evs;
         }
+        
+        document.getElementById('globalMatrixSize').addEventListener('change', initializeSpirals);
 
         function initializeSpirals() {
             isAnimating = false;
@@ -259,17 +271,26 @@
             pointsPerSpiral = parseInt(document.getElementById('pointsPerSpiral').value);
             const numSpirals = parseInt(document.getElementById('numSpirals').value);
             const matrixSize = parseInt(document.getElementById('matrixSize').value);
+            const globalMatrixSize = parseInt(document.getElementById('globalMatrixSize').value);
             const eigenvalueMin = parseFloat(document.getElementById('eigenvalueMin').value);
             const eigenvalueMax = parseFloat(document.getElementById('eigenvalueMax').value);
+            
 
             spirals = [];
+
+            // Generate global matrix
+            const globalMatrix = generateRandomMatrix(globalMatrixSize, eigenvalueMin, eigenvalueMax);
+            const globalEvs = eigenvalues(globalMatrix);
 
             for (let i = 0; i < numSpirals; i++) {
                 const matrix = generateRandomMatrix(matrixSize, eigenvalueMin, eigenvalueMax);
                 const evs = eigenvalues(matrix);
-                const startX = evs[0];
-                const startY = evs[1];
-                const startAngle = Math.atan2(evs[2], evs[1]);
+                
+                // Combine global and individual eigenvalues
+                const startX = globalEvs[0] * evs[0];
+                const startY = globalEvs[1] * evs[1];
+                const startAngle = Math.atan2(globalEvs[2] * evs[2], globalEvs[1] * evs[1]);
+                
                 spirals.push(new Spiral(startX, startY, startAngle, 0));
             }
 
@@ -280,7 +301,7 @@
         document.getElementById('numSpirals').addEventListener('change', initializeSpirals);
         document.getElementById('matrixSize').addEventListener('change', initializeSpirals);
         document.getElementById('eigenvalueMin').addEventListener('change', initializeSpirals);
-        document.getElementById('eigenvalueMax').addEventListener('change', initializeSpirals);
+        document.getElementById('globalMatrixSize').addEventListener('change', initializeSpirals);
 
         window.addEventListener('load', initializeSpirals);
     </script>

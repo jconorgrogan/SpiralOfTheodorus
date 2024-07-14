@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>One Hundred Circles Pattern</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        svg {
+            width: 100%;
+            height: 90vh;
+            background-color: white;
+        }
+        .grid line {
+            stroke: #ccc;
+            stroke-width: 0.01;
+        }
+        .circle {
+            fill: none;
+            stroke-width: 0.02;
+        }
+        .center {
+            fill: black;
+        }
+        .label {
+            font-size: 0.1px;
+            fill: black;
+        }
+    </style>
+</head>
+<body>
+    <svg viewBox="-1 -1 38 38">
+        <defs>
+            <pattern id="grid" width="0.866" height="1" patternUnits="userSpaceOnUse">
+                <path d="M 0.866 0 L 0 0 0 1" fill="none" stroke="#eee" stroke-width="0.01"/>
+            </pattern>
+        </defs>
+        
+        <rect x="-1" y="-1" width="38" height="38" fill="url(#grid)" />
+        
+        <g class="grid">
+            <line x1="-1" y1="0" x2="37" y2="0" stroke-width="0.02" stroke="#ccc"/>
+            <line x1="0" y1="-1" x2="0" y2="37" stroke-width="0.02" stroke="#ccc"/>
+        </g>
+        
+        <script type="text/javascript">
+            <![CDATA[
+            function createCircles() {
+                const svg = document.querySelector('svg');
+                const colors = ['#FF6347', '#4682B4', '#32CD32', '#FFA500', '#8A2BE2', '#FF1493', '#00CED1', '#FFD700', '#FF69B4', '#20B2AA'];
+                let x = 0, y = 0;
+                let dx = 0.866, dy = 0.5;
+                
+                for (let i = 1; i <= 100; i++) {
+                    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                    circle.setAttribute('cx', x);
+                    circle.setAttribute('cy', y);
+                    circle.setAttribute('r', '1');
+                    circle.setAttribute('stroke', colors[i % colors.length]);
+                    circle.setAttribute('class', 'circle');
+                    svg.appendChild(circle);
+                    
+                    const center = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                    center.setAttribute('cx', x);
+                    center.setAttribute('cy', y);
+                    center.setAttribute('r', '0.04');
+                    center.setAttribute('class', 'center');
+                    svg.appendChild(center);
+                    
+                    const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                    label.setAttribute('x', x);
+                    label.setAttribute('y', y);
+                    label.setAttribute('dy', '0.3');
+                    label.setAttribute('text-anchor', 'middle');
+                    label.setAttribute('class', 'label');
+                    label.textContent = i;
+                    svg.appendChild(label);
+                    
+                    if (i % 2 === 0) {
+                        x += dx;
+                        y += dy;
+                        if (i % 4 === 0) {
+                            dy = -dy;
+                        }
+                    } else {
+                        y += 1;
+                    }
+                }
+            }
+            createCircles();
+            ]]>
+        </script>
+    </svg>
+</body>
+</html>

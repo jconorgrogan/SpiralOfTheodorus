@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Theodorus-ISG Animated Visualization</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.26.0/plotly.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f7fa;
+            color: #333;
+        }
+        #header {
+            background-color: #2c3e50;
+            color: white;
+            padding: 15px 20px;
+            text-align: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        #container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .panel {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        #animation-controls {
+            padding: 15px 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #eaeaea;
+        }
+        #plotArea {
+            width: 100%;
+            height: 700px;
+        }
+        .counter-display {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .counter {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2c3e50;
+            background-color: #f1f5f9;
+            padding: 5px 15px;
+            border-radius: 4px;
+            min-width: 60px;
+            text-align: center;
+        }
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            font-weight: bold;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        button:disabled {
+            background-color: #95a5a6;
+            cursor: not-allowed;
+        }
+        #playPauseBtn {
+            min-width: 80px;
+        }
+        button.active {
+            background-color: #27ae60;
+        }
+        input[type="range"] {
+            width: 150px;
+        }
+        input[type="number"] {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 80px;
+        }
+        label {
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .view-controls {
+            padding: 10px 20px;
+            background-color: #f8fafc;
+            border-bottom: 1px solid #eaeaea;
+            display: flex;
+            gap: 15px;
+        }
+        .view-btn {
+            background-color: #e2e8f0;
+            color: #2c3e50;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .view-btn.active {
+            background-color: #3498db;
+            color: white;
+        }
+        #infoPanel {
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 15px;
+        }
+        .info-card {
+            background-color: #f8fafc;
+            border-radius: 6px;
+            padding: 15px;
+        }
+        .status-bar {
+            display: flex;
+            padding: 10px 20px;
+            background-color: #f1f5f9;
+            font-style: italic;
+            color: #64748b;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .prime-tag {
+            display: inline-block;
+            background-color: #f87171;
+            color: white;
+            font-size: 12px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-left: 8px;
+        }
+        #detailsPanel {
+            position: absolute;
+            right: 20px;
+            top: 100px;
+            width: 300px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+            padding: 15px;
+            z-index: 1000;
+        }
+        .details-title {
+            font-weight: bold;
+            border-bottom: 1px solid #eaeaea;
+            padding-bottom: 8px;
+            margin-bottom: 10px;
+        }
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        .detail-label {
+            font-weight: bold;
+            color: #64748b;
+        }
+        .detail-value {
+            text-align: right;
+        }
+        @media (max-width: 768px) {
+            #animation-controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .counter-display {
+                justify-content: center;
+            }
+            #detailsPanel {
+                position: fixed;
+                right: 10px;
+                top: auto;
+                bottom: 10px;
+                width: calc(100% - 60px);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="header">
+        <h1>Theodorus Spiral & ISG Mapping Animation</h1>
+    </div>
+    <div id="container">
+        <div class="panel">
+            <div id="animation-controls">
+                <div class="counter-display">
+                    <label for="counter">Current n:</label>
+                    <div id="counter" class="counter">1</div>
+                    <div id="primeIndicator"></div>
+                </div>
+                <div class="control-group">
+                    <button id="playPauseBtn">Play</button>
+                    <button id="resetBtn">Reset</button>
+                    <div>
+                        <label for="speedControl">Speed:</label>
+                        <input type="range" id="speedControl" min="1" max="20" value="5">
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label for="maxCount">Max n:</label>
+                    <input type="number" id="maxCount" min="10" max="1000" value="100">
+                    <button id="applyMaxBtn">Apply</button>
+                </div>
+            </div>
+            <div class="view-controls">
+                <button class="view-btn active" data-view="maxExponent">Max Prime Exponent (xᶦ)</button>
+                <button class="view-btn" data-view="totalFactors">Total Prime Factors (yᶦ)</button>
+                <button class="view-btn" data-view="both">Both</button>
+            </div>
+            <div id="plotArea"></div>
+            <div class="status-bar">
+                <div id="statusMessage">Ready to start animation</div>
+                <div>
+                    <button id="showHistoryBtn" class="active">Hide History</button>
+                </div>
+            </div>
+        </div>
+        <div class="panel">
+            <div id="infoPanel">
+                <h3>About This Animation</h3>
+                <p>This animation shows the progressive building of the Theodorus Spiral and its relationship to the Integer-Structure Grid (ISG) mapping.</p>
+                
+                <div class="info-grid">
+                    <div class="info-card">
+                        <h4>Theodorus Spiral</h4>
+                        <p>A spiral of right triangles where each triangle has:</p>
+                        <ul>
+                            <li>One leg of length 1</li>
+                            <li>The hypotenuse forms a right angle with the next leg</li>
+                        </ul>
+                        <p>For each integer n, the point's position (x,y) on the spiral is determined by the spiral's mathematical properties.</p>
+                    </div>
+                    <div class="info-card">
+                        <h4>Integer-Structure Grid (ISG)</h4>
+                        <p>Represents integers by their prime factorization structure:</p>
+                        <ul>
+                            <li><strong>xᶦ</strong>: Maximum exponent in the prime factorization</li>
+                            <li><strong>yᶦ</strong>: Total number of prime factors (with multiplicity)</li>
+                        </ul>
+                        <p>For example, for n=12 (2² × 3¹), xᶦ=2 and yᶦ=3</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="detailsPanel">
+        <div class="details-title">Point Details</div>
+        <div class="detail-row">
+            <div class="detail-label">Integer n:</div>
+            <div class="detail-value" id="detail-n">-</div>
+        </div>
+        <div class="detail-row">
+            <div class="detail-label">Prime factorization:</div>
+            <div class="detail-value" id="detail-factors">-</div>
+        </div>
+        <div class="detail-row">
+            <div class="detail-label">Max exponent (xᶦ):</div>
+            <div class="detail-value" id="detail-xi">-</div>
+        </div>
+        <div class="detail-row">
+            <div class="detail-label">Total factors (yᶦ):</div>
+            <div class="detail-value" id="detail-yi">-</div>
+        </div>
+        <div class="detail-row">
+            <div class="detail-label">Spiral coordinates:</div>
+            <div class="detail-value" id="detail-spiral">-</div>
+        </div>
+    </div>
+
+    <script>
+        // Main variables
+        let currentN = 1;
+        let maxN = parseInt(document.getElementById('maxCount').value);
+        let isPlaying = false;
+        let animationSpeed = parseInt(document.getElementById('speedControl').value);
+        let animationTimer;
+        let currentViewMode = 'maxExponent';
+        let retainHistory = true; // Set to true by default now
+        
+        // Data storage
+        const allData = {
+            n: [],
+            spiralX: [],
+            spiralY: [],
+            isgX: [],
+            isgY: [],
+            isPrime: []
+        };
+        
+        // Prime factorization functions
+        function isPrime(n) {
+            if (n <= 1) return false;
+            if (n <= 3) return true;
+            if (n % 2 === 0 || n % 3 === 0) return false;
+            
+            let i = 5;
+            while (i * i <= n) {
+                if (n % i === 0 || n % (i + 2) === 0) return false;
+                i += 6;
+            }
+            return true;
+        }
+        
+        function primeFactors(n) {
+            if (n < 2) return {};
+            
+            let factors = {};
+            
+            // Handle divisions by 2
+            while (n % 2 === 0) {
+                factors[2] = (factors[2] || 0) + 1;
+                n /= 2;
+            }
+            
+            // Check odd divisors
+            let d = 3;
+            while (d * d <= n) {
+                while (n % d === 0) {
+                    factors[d] = (factors[d] || 0) + 1;
+                    n /= d;
+                }
+                d += 2;
+            }
+            
+            // If n is a prime number greater than 2
+            if (n > 1) {
+                factors[n] = (factors[n] || 0) + 1;
+            }
+            
+            return factors;
+        }
+
+        function isgCoords(n) {
+            if (n === 1) return [0, 0];
+            
+            const factors = primeFactors(n);
+            const exponents = Object.values(factors);
+            const x_i = exponents.length > 0 ? Math.max(...exponents) : 0;
+            const y_i = exponents.reduce((sum, val) => sum + val, 0);
+            
+            return [x_i, y_i];
+        }
+
+        // Theodorus spiral calculation for a single point
+        function spiralPoint(n) {
+            if (n === 1) return [0, 0];
+            
+            let x = 1;
+            let y = 0;
+            let theta = 0;
+            
+            // We calculate each point step by step
+            for (let k = 2; k <= n; k++) {
+                const dtheta = Math.atan(1 / Math.sqrt(k - 1));
+                theta += dtheta;
+                
+                // Calculate coordinates for current n
+                const r = Math.sqrt(k);
+                x = r * Math.cos(theta);
+                y = r * Math.sin(theta);
+            }
+            
+            return [x, y];
+        }
+        
+        // Calculate data for the current n
+        function calculateCurrentData() {
+            // Calculate spiral coordinates
+            const [spiralX, spiralY] = spiralPoint(currentN);
+            
+            // Calculate ISG coordinates
+            const [isgX, isgY] = isgCoords(currentN);
+            
+            // Check if prime
+            const prime = isPrime(currentN);
+            
+            // Update data storage
+            allData.n.push(currentN);
+            allData.spiralX.push(spiralX);
+            allData.spiralY.push(spiralY);
+            allData.isgX.push(isgX);
+            allData.isgY.push(isgY);
+            allData.isPrime.push(prime);
+            
+            return {
+                n: currentN,
+                spiralX,
+                spiralY,
+                isgX,
+                isgY,
+                prime
+            };
+        }
+        
+        // Format prime factorization for display
+        function formatFactorization(n) {
+            if (n === 1) return "1";
+            
+            const factors = primeFactors(n);
+            return Object.entries(factors)
+                .map(([base, exp]) => exp > 1 ? `${base}^${exp}` : base)
+                .join(' × ');
+        }
+        
+        // Update the UI counter and indicators
+        function updateCounter(n, isPrime) {
+            document.getElementById('counter').textContent = n;
+            
+            // Update prime indicator
+            const indicator = document.getElementById('primeIndicator');
+            if (isPrime) {
+                indicator.innerHTML = '<span class="prime-tag">PRIME</span>';
+            } else {
+                indicator.innerHTML = '';
+            }
+            
+            // Update status message
+            const statusMsg = document.getElementById('statusMessage');
+            const factorization = formatFactorization(n);
+            statusMsg.textContent = `n = ${n}${isPrime ? ' (prime)' : `: ${factorization}`}`;
+        }
+        
+        // Create and update the visualization
+        function updateVisualization() {
+            const plotArea = document.getElementById('plotArea');
+            
+            // Determine which points to show - now all points up to currentN
+            let visibleIndices = [];
+            if (retainHistory) {
+                // Show all points up to currentN
+                for (let i = 0; i < allData.n.length; i++) {
+                    visibleIndices.push(i);
+                }
+            } else {
+                // Show only current point
+                const index = allData.n.indexOf(currentN);
+                if (index !== -1) {
+                    visibleIndices.push(index);
+                }
+            }
+            
+            // Extract data for visible points
+            const visibleData = {
+                n: visibleIndices.map(i => allData.n[i]),
+                spiralX: visibleIndices.map(i => allData.spiralX[i]),
+                spiralY: visibleIndices.map(i => allData.spiralY[i]),
+                isgX: visibleIndices.map(i => allData.isgX[i]),
+                isgY: visibleIndices.map(i => allData.isgY[i]),
+                isPrime: visibleIndices.map(i => allData.isPrime[i])
+            };
+            
+            // Add lines connecting the spiral points when showing history
+            let lineX = [];
+            let lineY = [];
+            let lineZ = [];
+            
+            if (retainHistory && visibleData.n.length > 1) {
+                // Sort by n to ensure correct line order
+                const sortedIndices = [...visibleIndices].sort((a, b) => allData.n[a] - allData.n[b]);
+                
+                sortedIndices.forEach(i => {
+                    lineX.push(allData.spiralX[i]);
+                    lineY.push(allData.spiralY[i]);
+                    if (currentViewMode === 'totalFactors') {
+                        lineZ.push(allData.isgY[i]);
+                    } else {
+                        lineZ.push(allData.isgX[i]);
+                    }
+                });
+            }
+            
+            // Size based on max prime exponent or if prime
+            const sizes = visibleData.n.map((n, i) => {
+                const baseSize = 8;
+                if (visibleData.isPrime[i]) return baseSize * 1.5;
+                return baseSize + visibleData.isgX[i] * 2;
+            });
+            
+            // Colors: highlight current point and primes differently
+            const colors = visibleData.n.map((n, i) => {
+                if (n === currentN) return '#e74c3c'; // Current point is red
+                if (visibleData.isPrime[i]) return '#f39c12'; // Primes are orange
+                return '#3498db'; // Other numbers are blue
+            });
+            
+            // Define hover text
+            const hoverTexts = visibleData.n.map((n, i) => {
+                return `n: ${n}${visibleData.isPrime[i] ? ' (PRIME)' : ''}<br>` +
+                    `Prime factorization: ${formatFactorization(n)}<br>` +
+                    `xᶦ: ${visibleData.isgX[i]} (max prime exp)<br>` +
+                    `yᶦ: ${visibleData.isgY[i]} (total factors)<br>` +
+                    `Spiral: (${visibleData.spiralX[i].toFixed(2)}, ${visibleData.spiralY[i].toFixed(2)})`;
+            });
+
+            // Define traces
+            const maxExponentTrace = {
+                type: 'scatter3d',
+                mode: 'markers',
+                x: visibleData.spiralX,
+                y: visibleData.spiralY,
+                z: visibleData.isgX,
+                text: hoverTexts,
+                hoverinfo: 'text',
+                marker: {
+                    size: sizes,
+                    color: colors,
+                    opacity: 0.8
+                },
+                name: 'Max Prime Exponent (xᶦ)'
+            };
+            
+            const totalFactorsTrace = {
+                type: 'scatter3d',
+                mode: 'markers',
+                x: visibleData.spiralX,
+                y: visibleData.spiralY,
+                z: visibleData.isgY,
+                text: hoverTexts,
+                hoverinfo: 'text',
+                marker: {
+                    size: sizes,
+                    color: colors,
+                    opacity: 0.8
+                },
+                name: 'Total Prime Factors (yᶦ)'
+            };
+            
+            // Add connecting line trace if showing history
+            const lineTrace = {
+                type: 'scatter3d',
+                mode: 'lines',
+                x: lineX,
+                y: lineY,
+                z: lineZ,
+                line: {
+                    color: '#95a5a6',
+                    width: 2
+                },
+                hoverinfo: 'none',
+                showlegend: false
+            };
+            
+            // Determine which traces to show based on viewMode
+            let traces = [];
+            if (retainHistory && lineX.length > 0) {
+                traces.push(lineTrace);
+            }
+            
+            switch(currentViewMode) {
+                case 'maxExponent':
+                    traces.push(maxExponentTrace);
+                    break;
+                case 'totalFactors':
+                    traces.push(totalFactorsTrace);
+                    break;
+                case 'both':
+                    traces.push(maxExponentTrace, totalFactorsTrace);
+                    break;
+            }
+            
+            // Get current camera position if plot exists
+            let currentCamera = {
+                eye: { x: 1.5, y: 1.5, z: 1.2 }
+            };
+            
+            if (plotArea._fullLayout && plotArea._fullLayout.scene && plotArea._fullLayout.scene.camera) {
+                currentCamera = plotArea._fullLayout.scene.camera;
+            }
+            
+            // Layout configuration
+            const layout = {
+                margin: { l: 0, r: 0, b: 0, t: 10 },
+                scene: {
+                    xaxis: { title: 'Spiral x' },
+                    yaxis: { title: 'Spiral y' },
+                    zaxis: { 
+                        title: currentViewMode === 'totalFactors' ? 'Total Factors (yᶦ)' : 
+                               currentViewMode === 'maxExponent' ? 'Max Prime Exponent (xᶦ)' : 
+                               'ISG Value'
+                    },
+                    camera: currentCamera,
+                    aspectmode: 'data'
+                },
+                legend: {
+                    x: 0.85,
+                    y: 0.95
+                }
+            };
+            
+            Plotly.newPlot(plotArea, traces, layout);
+            
+            // Update detail panel with current point data
+            updateDetailPanel();
+        }
+        
+        function updateDetailPanel() {
+            const index = allData.n.indexOf(currentN);
+            if (index === -1) return;
+            
+            document.getElementById('detail-n').textContent = currentN;
+            document.getElementById('detail-factors').textContent = formatFactorization(currentN);
+            document.getElementById('detail-xi').textContent = allData.isgX[index];
+            document.getElementById('detail-yi').textContent = allData.isgY[index];
+            document.getElementById('detail-spiral').textContent = 
+                `(${allData.spiralX[index].toFixed(2)}, ${allData.spiralY[index].toFixed(2)})`;
+        }
+        
+        // Animation control functions
+        function nextStep() {
+            if (currentN >= maxN) {
+                pauseAnimation();
+                return;
+            }
+            
+            currentN++;
+            const data = calculateCurrentData();
+            updateCounter(data.n, data.prime);
+            updateVisualization();
+        }
+        
+        function playAnimation() {
+            if (isPlaying) return;
+            
+            isPlaying = true;
+            document.getElementById('playPauseBtn').textContent = 'Pause';
+            document.getElementById('playPauseBtn').classList.add('active');
+            
+            animationTimer = setInterval(() => {
+                nextStep();
+                if (currentN >= maxN) {
+                    pauseAnimation();
+                }
+            }, 1000 / animationSpeed);
+        }
+        
+        function pauseAnimation() {
+            if (!isPlaying) return;
+            
+            isPlaying = false;
+            clearInterval(animationTimer);
+            document.getElementById('playPauseBtn').textContent = 'Play';
+            document.getElementById('playPauseBtn').classList.remove('active');
+        }
+        
+        function resetAnimation() {
+            pauseAnimation();
+            
+            // Reset data
+            currentN = 0;
+            allData.n = [];
+            allData.spiralX = [];
+            allData.spiralY = [];
+            allData.isgX = [];
+            allData.isgY = [];
+            allData.isPrime = [];
+            
+            // Step to 1
+            nextStep();
+        }
+        
+        // Event listeners
+        document.getElementById('playPauseBtn').addEventListener('click', function() {
+            if (isPlaying) {
+                pauseAnimation();
+            } else {
+                playAnimation();
+            }
+        });
+        
+        document.getElementById('resetBtn').addEventListener('click', resetAnimation);
+        
+        document.getElementById('speedControl').addEventListener('input', function() {
+            animationSpeed = parseInt(this.value);
+            
+            // If currently playing, restart the interval with new speed
+            if (isPlaying) {
+                clearInterval(animationTimer);
+                animationTimer = setInterval(() => {
+                    nextStep();
+                    if (currentN >= maxN) {
+                        pauseAnimation();
+                    }
+                }, 1000 / animationSpeed);
+            }
+        });
+        
+        document.getElementById('applyMaxBtn').addEventListener('click', function() {
+            const newMax = parseInt(document.getElementById('maxCount').value);
+            if (isNaN(newMax) || newMax < 10) {
+                alert('Max n must be at least 10');
+                return;
+            }
+            
+            if (newMax > 1000) {
+                if (!confirm('Large values may slow down the animation. Continue?')) {
+                    return;
+                }
+            }
+            
+            maxN = newMax;
+            document.getElementById('statusMessage').textContent = `Max n set to ${maxN}`;
+        });
+        
+        document.getElementById('showHistoryBtn').addEventListener('click', function() {
+            retainHistory = !retainHistory;
+            this.textContent = retainHistory ? 'Hide History' : 'Retain History';
+            this.classList.toggle('active', retainHistory);
+            updateVisualization();
+        });
+        
+        // View mode buttons
+        document.querySelectorAll('.view-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                // Update active state
+                document.querySelectorAll('.view-btn').forEach(b => {
+                    b.classList.remove('active');
+                });
+                this.classList.add('active');
+                
+                // Update view mode
+                currentViewMode = this.dataset.view;
+                updateVisualization();
+            });
+        });
+        
+        // Initialize
+        window.addEventListener('load', function() {
+            // Calculate initial data point
+            calculateCurrentData();
+            updateCounter(currentN, isPrime(currentN));
+            
+            // Set the history button to active state since we're starting with history on
+            document.getElementById('showHistoryBtn').classList.add('active');
+            
+            // Show visualization
+            updateVisualization();
+            
+            // Add manual step button
+            const stepBtn = document.createElement('button');
+            stepBtn.textContent = 'Step';
+            stepBtn.id = 'stepBtn';
+            stepBtn.addEventListener('click', nextStep);
+            document.querySelector('.control-group').appendChild(stepBtn);
+        });
+    </script>
+</body>
+</html>

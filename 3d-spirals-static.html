@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Spiral of Theodorus - Customizable</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <style>
+        body { margin: 0; display: flex; flex-direction: column; align-items: center; font-family: Arial, sans-serif; }
+        #controls { display: flex; flex-wrap: wrap; justify-content: center; margin: 10px; }
+        .control-group { margin: 5px; }
+        canvas { width: 800px; height: 600px; }
+    </style>
+</head>
+<body>
+    <h1>3D Spiral of Theodorus - Customizable</h1>
+    <div id="controls">
+        <!-- Existing controls -->
+        <div class="control-group">
+            <label for="maxDepth">Max Depth:</label>
+            <input type="number" id="maxDepth" min="1" max="5" value="3">
+        </div>
+        <div class="control-group">
+            <label for="pointsPerSpiral">Points/Spiral:</label>
+            <input type="number" id="pointsPerSpiral" min="10" max="100" value="30">
+        </div>
+        <div class="control-group">
+            <label for="numSpirals">Number of Spirals:</label>
+            <input type="number" id="numSpirals" min="1" max="10" value="5">
+        </div>
+        <div class="control-group">
+            <label for="matrixSize">Matrix Size:</label>
+            <input type="number" id="matrixSize" min="3" max="5" value="3">
+        </div>
+        <div class="control-group">
+            <label for="globalMatrixSize">Global Matrix Size:</label>
+            <input type="number" id="globalMatrixSize" min="3" max="5" value="3">
+        </div>
+        <div class="control-group">
+            <label for="eigenvalueMin">Eigenvalue Min:</label>
+            <input type="number" id="eigenvalueMin" step="0.1" value="-1">
+        </div>
+        <div class="control-group">
+            <label for="eigenvalueMax">Eigenvalue Max:</label>
+            <input type="number" id="eigenvalueMax" step="0.1" value="1">
+        </div>
+        
+        <!-- New camera controls -->
+        <div class="control-group">
+            <label for="cameraX">Camera X:</label>
+            <input type="number" id="cameraX" step="0.1" value="5">
+        </div>
+        <div class="control-group">
+            <label for="cameraY">Camera Y:</label>
+            <input type="number" id="cameraY" step="0.1" value="5">
+        </div>
+        <div class="control-group">
+            <label for="cameraZ">Camera Z:</label>
+            <input type="number" id="cameraZ" step="0.1" value="5">
+        </div>
+        
+        <!-- Rendering controls -->
+        <div class="control-group">
+            <label for="backgroundColor">Background Color:</label>
+            <input type="color" id="backgroundColor" value="#000000">
+        </div>
+        <div class="control-group">
+            <label for="spiralLineWidth">Spiral Line Width:</label>
+            <input type="number" id="spiralLineWidth" min="1" max="10" value="1">
+        </div>
+        <div class="control-group">
+            <label for="gridSize">Grid Size:</label>
+            <input type="number" id="gridSize" min="5" max="20" value="10">
+        </div>
+        <div class="control-group">
+            <label for="gridDivisions">Grid Divisions:</label>
+            <input type="number" id="gridDivisions" min="5" max="20" value="10">
+        </div>
+        <div class="control-group">
+            <label for="gridColor">Grid Color:</label>
+            <input type="color" id="gridColor" value="#444444">
+        </div>
+        
+        <div class="control-group">
+            <button id="generate">Generate</button>
+            <button id="downloadMath">Download Math</button>
+            <button id="downloadPlot">Download Plot</button>
+        </div>
+    </div>
+    <div id="renderArea"></div>
+
+    <script>
+        let spirals = [];
+        let scene, camera, renderer, grid;
+
+        class SpiralPoint {
+            constructor(x, y, z, angle, depth) {
+                this.x = x;
+                this.y = y;
+                this.z = z;
+                this.angle = angle;
+                this.depth = depth;
+            }
+        }
+
+        class Spiral {
+            constructor(startX, startY, startZ, startAngle, depth) {
+                this.points = [new SpiralPoint(startX, startY, startZ, startAngle, depth)];
+                this.depth = depth;
+            }
+
+            growPoints(pointsPerSpiral, maxDepth) {
+                const scale = 0.2;
+                for (let i = 1; i < pointsPerSpiral; i++) {
+                    const lastPoint = this.points[i - 1];
+                    const n = i + 1;
+                    const hypotenuse = Math.sqrt(n) * scale;
+                    const newAngle = lastPoint.angle + Math.atan(1 / Math.sqrt(n - 1));
+                    const newX = lastPoint.x + Math.cos(newAngle) * Math.cos(lastPoint.angle) * hypotenuse;
+                    const newY = lastPoint.y + Math.cos(newAngle) * Math.sin(lastPoint.angle) * hypotenuse;
+                    const newZ = lastPoint.z + Math.sin(newAngle) * hypotenuse;
+                    
+                    this.points.push(new SpiralPoint(newX, newY, newZ, newAngle, this.depth));
+
+                    if (Math.sqrt(n) % 1 === 0 && n > 1 && this.depth < maxDepth) {
+                        const sqrtN = Math.sqrt(n);
+                        const spawnRatio = (sqrtN - 1) / sqrtN;
+                        const spawnX = newX * spawnRatio + lastPoint.x * (1 - spawnRatio);
+                        const spawnY = newY * spawnRatio + lastPoint.y * (1 - spawnRatio);
+                        const spawnZ = newZ * spawnRatio + lastPoint.z * (1 - spawnRatio);
+                        const spawnAngle = Math.atan2(newY - lastPoint.y, newX - lastPoint.x);
+                        spirals.push(new Spiral(spawnX, spawnY, spawnZ, spawnAngle, this.depth + 1));
+                    }
+                }
+            }
+        }
+
+        function generateRandomMatrix(size, min, max) {
+            return Array.from({length: size}, () => 
+                Array.from({length: size}, () => Math.random() * (max - min) + min)
+            );
+        }
+
+        function eigenvalues(matrix) {
+            // Simplified eigenvalue calculation (placeholder)
+            return matrix.map(row => row.reduce((a, b) => a + b) / row.length);
+        }
+
+        function generateSpirals() {
+            const maxDepth = parseInt(document.getElementById('maxDepth').value);
+            const pointsPerSpiral = parseInt(document.getElementById('pointsPerSpiral').value);
+            const numSpirals = parseInt(document.getElementById('numSpirals').value);
+            const matrixSize = parseInt(document.getElementById('matrixSize').value);
+            const globalMatrixSize = parseInt(document.getElementById('globalMatrixSize').value);
+            const eigenvalueMin = parseFloat(document.getElementById('eigenvalueMin').value);
+            const eigenvalueMax = parseFloat(document.getElementById('eigenvalueMax').value);
+
+            spirals = [];
+
+            const globalMatrix = generateRandomMatrix(globalMatrixSize, eigenvalueMin, eigenvalueMax);
+            const globalEvs = eigenvalues(globalMatrix);
+
+            for (let i = 0; i < numSpirals; i++) {
+                const matrix = generateRandomMatrix(matrixSize, eigenvalueMin, eigenvalueMax);
+                const evs = eigenvalues(matrix);
+                
+                const startX = globalEvs[0] * evs[0];
+                const startY = globalEvs[1] * evs[1];
+                const startZ = globalEvs[2] * evs[2];
+                const startAngle = Math.atan2(evs[1], evs[0]);
+                
+                spirals.push(new Spiral(startX, startY, startZ, startAngle, 0));
+            }
+
+            spirals.forEach(spiral => spiral.growPoints(pointsPerSpiral, maxDepth));
+
+            return {
+                spirals: spirals,
+                globalMatrix: globalMatrix,
+                globalEigenvalues: globalEvs
+            };
+        }
+
+        function initThreeJS() {
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, 800 / 600, 0.1, 1000);
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(800, 600);
+            document.getElementById('renderArea').appendChild(renderer.domElement);
+
+            // Add ambient light
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+            scene.add(ambientLight);
+
+            // Add directional light
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+            directionalLight.position.set(1, 1, 1);
+            scene.add(directionalLight);
+
+            updateCameraPosition();
+            updateGridAndBackground();
+        }
+
+        function updateCameraPosition() {
+            const x = parseFloat(document.getElementById('cameraX').value);
+            const y = parseFloat(document.getElementById('cameraY').value);
+            const z = parseFloat(document.getElementById('cameraZ').value);
+            camera.position.set(x, y, z);
+            camera.lookAt(0, 0, 0);
+        }
+
+        function updateGridAndBackground() {
+            // Remove existing grid if any
+            if (grid) scene.remove(grid);
+
+            const gridSize = parseInt(document.getElementById('gridSize').value);
+            const gridDivisions = parseInt(document.getElementById('gridDivisions').value);
+            const gridColor = document.getElementById('gridColor').value;
+
+            grid = new THREE.GridHelper(gridSize, gridDivisions, gridColor, gridColor);
+            scene.add(grid);
+
+            const backgroundColor = document.getElementById('backgroundColor').value;
+            scene.background = new THREE.Color(backgroundColor);
+        }
+
+        function renderSpirals() {
+            // Clear existing spirals
+            scene.children = scene.children.filter(child => !(child instanceof THREE.Line));
+
+            const lineWidth = parseFloat(document.getElementById('spiralLineWidth').value);
+
+            spirals.forEach((spiral, index) => {
+                const material = new THREE.LineBasicMaterial({
+                    color: new THREE.Color(`hsl(${index * 137.5 % 360}, 50%, 50%)`),
+                    linewidth: lineWidth
+                });
+                const geometry = new THREE.BufferGeometry().setFromPoints(
+                    spiral.points.map(p => new THREE.Vector3(p.x, p.y, p.z))
+                );
+                const line = new THREE.Line(geometry, material);
+                scene.add(line);
+            });
+
+            updateCameraPosition();
+            updateGridAndBackground();
+            renderer.render(scene, camera);
+        }
+
+        function downloadMathResults(data) {
+            const blob = new Blob([JSON.stringify(data, null, 2)], {type: "application/json"});
+            saveAs(blob, "spiral_math_results.json");
+        }
+
+        function downloadPlot() {
+            renderer.domElement.toBlob(function(blob) {
+                saveAs(blob, "spiral_plot.png");
+            });
+        }
+
+        document.getElementById('generate').addEventListener('click', () => {
+            const mathResults = generateSpirals();
+            renderSpirals();
+            console.log("Generation complete");
+        });
+
+        document.getElementById('downloadMath').addEventListener('click', () => {
+            const mathResults = generateSpirals();
+            downloadMathResults(mathResults);
+        });
+
+        document.getElementById('downloadPlot').addEventListener('click', downloadPlot);
+
+        // Add event listeners for camera and rendering controls
+        ['cameraX', 'cameraY', 'cameraZ', 'backgroundColor', 'spiralLineWidth', 'gridSize', 'gridDivisions', 'gridColor'].forEach(id => {
+            document.getElementById(id).addEventListener('change', renderSpirals);
+        });
+
+        initThreeJS();
+    </script>
+</body>
+</html>
